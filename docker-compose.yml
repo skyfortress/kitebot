@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  backend:
+    image: mcr.microsoft.com/playwright:latest
+    volumes:
+        - ./:/usr/src/web/
+    ports:
+      - 8000:8000
+    command: tail -f /dev/null
