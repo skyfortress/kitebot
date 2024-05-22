@@ -40,8 +40,8 @@ jobs:
           ssh ubuntu@${{ vars.SSH_HOST }} << EOF
             mkdir -p ~/kitebot-${{inputs.environment}}
             cd ~/kitebot-${{inputs.environment}}
-            echo "${{ vars.ENV_FILE }}" > .env
+            echo "${{ vars.ENV_FILE }}" > ./dist/.env
             unzip -q -o ../kitebot-${{inputs.environment}}.zip 
             rm ../kitebot-${{inputs.environment}}.zip
-            docker-compose up -d
+            docker compose up -d
           EOF

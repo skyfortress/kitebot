@@ -7,5 +7,4 @@ services:
         - ./:/usr/src/web/
     ports:
       - 8000:8000
-    working_dir: /usr/src/web/
-    command: node ./dist/index.js
+    command: node /usr/src/dist/index.js
