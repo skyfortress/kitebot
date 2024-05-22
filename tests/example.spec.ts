@@ -7,10 +7,10 @@ import FormData from 'form-data';
 // Your bot token
 const botToken = '6588479636:AAHWHCq7WNIoteGlAfhXjhvU7m2LkkhGhnc';
 // The chat ID where you want to send the message
-const chatId = '90780619';
+const chatId = '-738071021';
 
 
-const openai = new OpenAI({ apiKey: 'sk-proj-T5zQxqpf3oYiPzvWoX5QT3BlbkFJnVfA7j3G4McYCf0XRnkD' });
+
 
 
 test('has title', async ({ page, context }) => {
@@ -23,48 +23,46 @@ test('has title', async ({ page, context }) => {
       domain: 'beachcam.meo.pt',
     }
   ])
-  await page.goto('https://beachcam.meo.pt/livecams/lagoa-de-albufeira/');
-
-  // await page.getByLabel('Consentir', { exact: true }).click();
-  await page.getByLabel('video').scrollIntoViewIfNeeded();
-  // await page.waitForTimeout(20000);
+  console.log(process.env.WEBCAM_URL);
+  await page.goto(process.env.WEBCAM_URL!);
+  await page.getByLabel('video').first().scrollIntoViewIfNeeded();
   await page.getByLabel('video').first().click();
   await page.getByRole('button', { name: 'Fullscreen' }).click();
   await page.waitForTimeout(2000);
   await page.screenshot({ path: 'screens/screenshot.png' });
-  const image = readFileSync('./screens/screenshot.png');
+  return;
+  // const response = await openai.chat.completions.create({
+  //   model: "gpt-4o",
+  //   messages: [
+  //     {
+  //       role: "user",
+  //       content: [
+  //         { type: "text", text: "Do you see any kites on the image? Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Відповідь сформуй у форматі JSON: {msg: string; answer: boolean}, не додавай теги markdown" },
+  //         {
+  //           type: "image_url",
+  //           image_url: {
+  //             "url": `data:image/jpeg;base64,${image.toString('base64')}`,
+  //           },
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // });
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Do you see any kites on the image? Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Відповідь сформуй у форматі JSON: {msg: string; answer: boolean}, не додавай теги markdown" },
-          {
-            type: "image_url",
-            image_url: {
-              "url": `data:image/jpeg;base64,${image.toString('base64')}`,
-            },
-          },
-        ],
-      },
-    ],
-  });
 
-
-  const updates = await axios.get(`https://api.telegram.org/bot${botToken}/getUpdates`);
-  console.log(response.choices[0].message.content)
-  const msg = JSON.parse(response.choices[0].message.content!);
-  if (msg.answer) {
-    const formData = new FormData();
+  // const updates = await axios.get(`https://api.telegram.org/bot${botToken}/getUpdates`);
+  // console.log(JSON.stringify(updates.data.result, null, 2));
+  // console.log(response.choices[0].message.content)
+  // const msg = JSON.parse(response.choices[0].message.content!);
+  // if (msg.answer) {
+  //   const formData = new FormData();
     
-    formData.append('chat_id', chatId);
-    formData.append('photo', createReadStream('screenshot.png'));
-    formData.append('caption', msg.msg);
+  //   formData.append('chat_id', chatId);
+  //   formData.append('photo', createReadStream('./screens/screenshot.png'));
+  //   formData.append('caption', msg.msg);
 
-    await axios.post(`https://api.telegram.org/bot${botToken}/sendPhoto`, formData, {
-        headers: formData.getHeaders(),
-    });
-  }
+  //   await axios.post(`https://api.telegram.org/bot${botToken}/sendPhoto`, formData, {
+  //       headers: formData.getHeaders(),
+  //   });
+  // }
 });
