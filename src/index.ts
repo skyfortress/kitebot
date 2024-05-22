@@ -5,7 +5,7 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { spawn } from 'child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'path';
-dotenv.config();
+dotenv.config({ path: join(__dirname, '../.env')});
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 const availableWebcams = {
