@@ -36,8 +36,8 @@ jobs:
         run: zip -q -r artifact.zip ./* 
       - name: Deploy to remote server
         run: |
-          scp -r -P 21 ./artifact.zip ubuntu@${{ vars.SSH_HOST }}:kitebot-${{inputs.environment}}.zip
-          ssh ubuntu@${{ vars.SSH_HOST }} -p 21 << EOF
+          scp -r ./artifact.zip ubuntu@${{ vars.SSH_HOST }}:kitebot-${{inputs.environment}}.zip
+          ssh ubuntu@${{ vars.SSH_HOST }} << EOF
             mkdir -p ~/kitebot-${{inputs.environment}}
             cd ~/kitebot-${{inputs.environment}}
             echo "${{ vars.ENV_FILE }}" > .env
