@@ -18,7 +18,10 @@ const getSpotImage = async (location: keyof typeof availableWebcams) => {
   return new Promise((resolve, reject) => {
     console.log(`Getting spot image on ${location}`);
     const test = spawn('npx', ['playwright', 'test'], 
-      { env: { ...process.env, WEBCAM_URL: availableWebcams[location]}}
+      { 
+        cwd: join(__dirname, '../'),
+        env: { ...process.env, WEBCAM_URL: availableWebcams[location]}
+      }
     );
     test.stdout.on('data', (data) => {
       console.log(`stdout: ${data}`);
