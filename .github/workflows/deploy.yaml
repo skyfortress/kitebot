@@ -43,4 +43,5 @@ jobs:
             echo "${{ vars.ENV_FILE }}" > .env
             unzip -q -o ../kitebot-${{inputs.environment}}.zip 
             rm ../kitebot-${{inputs.environment}}.zip
+            docker-compose up -d
           EOF

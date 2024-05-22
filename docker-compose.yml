@@ -7,4 +7,5 @@ services:
         - ./:/usr/src/web/
     ports:
       - 8000:8000
-    command: tail -f /dev/null
+    working_dir: /usr/src/web/
+    command: node ./dist/index.js
