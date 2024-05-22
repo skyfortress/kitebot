@@ -1,0 +1,46 @@
+name: Deploy to remote server
+run-name: Deploy Branch ${{ github.ref_name || 'manual' }} to ${{ github.event.inputs.environment }}
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest 
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+      - name: Install ssh keys
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ vars.SSH_HOST }} > ~/.ssh/known_hosts
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build
+        run: yarn run build
+      - name: Install prod deps
+        run: |
+          rm -rf ./node_modules
+          yarn install --production --frozen-lockfile
+      - name: Zip files
+        run: zip -q -r artifact.zip ./* 
+      - name: Deploy to remote server
+        run: |
+          scp -r -P 21 ./artifact.zip ubuntu@${{ vars.SSH_HOST }}:kitebot-${{inputs.environment}}.zip
+          ssh ubuntu@${{ vars.SSH_HOST }} -p 21 << EOF
+            mkdir -p ~/kitebot-${{inputs.environment}}
+            cd ~/kitebot-${{inputs.environment}}
+            echo "${{ vars.ENV_FILE }}" > .env
+            unzip -q -o ../kitebot-${{inputs.environment}}.zip 
+            rm ../kitebot-${{inputs.environment}}.zip
+          EOF
