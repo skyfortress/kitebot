@@ -2,9 +2,30 @@ import TelegramBot from 'node-telegram-bot-api';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { spawn } from 'child_process';
-import { readFileSync } from 'node:fs';
 import { join } from 'path';
+import { firefox, devices } from 'playwright';
+import { Browser, BrowserContext } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+let browser: Browser;
+let context: BrowserContext;
+const prepareEnvirnoment = async () => {
+  browser = await firefox.launch();
+  context = await browser.newContext({
+    ...devices['Desktop Firefox'],
+  });
+  context.addCookies([
+    { 
+      name: '.AspNetCore.Identity.Application', 
+      value:
+      'CfDJ8LwlmD2SdXJLg6EFh_xHq-rfSDa-r5ZcaEj0gWLWOwDoEqnerdZL06nwiMzA54Y2tzVa-Eheo0EaJyONwH5KzYhDW6kP39K4wMosbE1LB9JypJmwFsv1HGNBsJwgR7Smo57WY5MQNU_5uO4zzrNuqcc9TXQQtcuYzFDrcHpmAs48Prd-21ZzlJRd1sYCZ_1JK2U5UE4tVtXoDGaTS8iKCR_eziJnSLyh1bZdfm_DJD6yqQ_TKMJdp5tbJT68daYtSkB6XO2_xugHhY6TJVam7rIIzCO0JxfVt9i-SnnWoJEM7uzfXFUclPyQlgJPxtDlIqxdSRZVEjxbS-KY2XsI78ikpvE1o58SA7AQiXWcSLzF5C7hA2BrXSRsnbqyaZut98dZZRYNC3HBKtZId-FmcReMnZl1y-7aXr-OtW8qwty3olurXHqjA9gWrYB6HEnKYZ1RS9vrKGK7js8jBHg4Rf3ltm39z0_-I1EW-FnvSi3BoX4jQQL3NgJqL8oBozgYRTMTcs-evrkNfR7gdfOzX-cuo4MtaKRPXIQazWexD7CUhbQ1CGktnBpv1imjCpmaW5Sv0FOk-9DPEsP58YCouL1giM6ykDUlofJU3HBO2oCD7EJXCFQoBMVK8rhAVYJO16SlNSW8BXSetuzA3h9G7DLrMI6NIIhicRRsyd2H5q-zFRCnkrw0jYfv1JYV3E4kq7AePkA9HgTbjJDsbxroRxQ',
+      path: '/',
+      domain: 'beachcam.meo.pt',
+    }
+  ]); //TODO: move to env
+  return { browser, context };
+};
+
 dotenv.config({ path: join(__dirname, '../.env')});
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -15,28 +36,16 @@ const availableWebcams = {
 
 
 const getSpotImage = async (location: keyof typeof availableWebcams) => {
-  return new Promise((resolve, reject) => {
-    console.log(`Getting spot image on ${location}`);
-    const test = spawn('npx', ['playwright', 'test'], 
-      { 
-        cwd: join(__dirname, '../'),
-        env: { ...process.env, WEBCAM_URL: availableWebcams[location]}
-      }
-    );
-    test.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
-
-
-    test.on('exit', (code) => {
-      console.log(`child process exited with code ${code}`);
-      if(code !== 0) {
-        reject(false);
-      }
-      const image = readFileSync(join(__dirname, '../screens/screenshot.png'));
-      resolve(image);
-    }); 
-  });
+  const page = await context.newPage();
+  await page.goto(availableWebcams[location]);
+  await page.getByLabel('video').first().scrollIntoViewIfNeeded();
+  await page.getByLabel('video').first().click();
+  await page.getByRole('button', { name: 'Fullscreen' }).click();
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: 'screens/screenshot.png' });
+  await page.close();
+  const image = readFileSync(join(__dirname, '../screens/screenshot.png'));
+  return image;
 };
 
 // Create a bot that uses 'polling' to fetch new updates
@@ -147,3 +156,6 @@ bot.on('message', async(msg) => {
   }
 });
 
+prepareEnvirnoment().then(async () => {
+  console.log('Browser is ready');
+});
