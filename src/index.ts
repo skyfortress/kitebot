@@ -65,7 +65,7 @@ bot.on('message', async(msg) => {
   console.log(msg);
   const chatId: number = msg.chat.id;
 
-  if (!msg.text || !msg.text.includes(process.env.TELEGRAM_BOT_NAME!) ) {
+  if ((!msg.text || !msg.text.includes(process.env.TELEGRAM_BOT_NAME!) && msg.chat.type !== 'private') ) {
     return;
   }
 
