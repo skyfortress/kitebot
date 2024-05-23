@@ -40,11 +40,11 @@ const getSpotImage = async (location: keyof typeof availableWebcams) => {
   const page = await context.newPage();
   await page.goto(availableWebcams[location]);
   await page.screenshot({ path: join(__dirname, '../screens/screenshot.png') });
-  // await page.getByLabel('video').first().scrollIntoViewIfNeeded();
-  // await page.getByLabel('video').first().click();
-  // await page.getByRole('button', { name: 'Fullscreen' }).click();
-  // await page.waitForTimeout(2000);
-  // await page.screenshot({ path: 'screens/screenshot.png' });
+  await page.getByLabel('video').first().scrollIntoViewIfNeeded();
+  await page.getByLabel('video').first().click();
+  await page.getByRole('button', { name: 'Fullscreen' }).click();
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: 'screens/screenshot.png' });
   console.log('Image is ready');
   await page.close();
   const image = readFileSync(join(__dirname, '../screens/screenshot.png'));
@@ -161,5 +161,4 @@ bot.on('message', async(msg) => {
 
 prepareEnvirnoment().then(async () => {
   console.log('Browser is ready');
-  await getSpotImage('Guincho');
 });
