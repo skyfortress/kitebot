@@ -50,9 +50,8 @@ bot.onText(/\/start/, (msg) => {
 
 // Listen for any kind of message. There are different kinds of messages.
 bot.on('message', async(msg) => {
+  console.log(msg);
   const chatId: number = msg.chat.id;
-
-  console.log(`Got message: ${msg.text}`);
 
   if (!msg.text || !msg.text.includes(process.env.TELEGRAM_BOT_NAME!) ) {
     return;
