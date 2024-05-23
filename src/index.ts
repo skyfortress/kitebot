@@ -39,7 +39,7 @@ const getSpotImage = async (location: keyof typeof availableWebcams) => {
   console.log('Getting image for', location);
   const page = await context.newPage();
   await page.goto(availableWebcams[location]);
-  await page.screenshot({ path: 'screens/screenshot.png' });
+  await page.screenshot({ path: join(__dirname, '../screens/screenshot.png') });
   // await page.getByLabel('video').first().scrollIntoViewIfNeeded();
   // await page.getByLabel('video').first().click();
   // await page.getByRole('button', { name: 'Fullscreen' }).click();
