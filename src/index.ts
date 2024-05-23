@@ -36,6 +36,7 @@ const availableWebcams = {
 
 
 const getSpotImage = async (location: keyof typeof availableWebcams) => {
+  console.log('Getting image for', location);
   const page = await context.newPage();
   await page.goto(availableWebcams[location]);
   await page.getByLabel('video').first().scrollIntoViewIfNeeded();
@@ -43,6 +44,7 @@ const getSpotImage = async (location: keyof typeof availableWebcams) => {
   await page.getByRole('button', { name: 'Fullscreen' }).click();
   await page.waitForTimeout(2000);
   await page.screenshot({ path: 'screens/screenshot.png' });
+  console.log('Image is ready');
   await page.close();
   const image = readFileSync(join(__dirname, '../screens/screenshot.png'));
   return image;
@@ -158,4 +160,5 @@ bot.on('message', async(msg) => {
 
 prepareEnvirnoment().then(async () => {
   console.log('Browser is ready');
+  await getSpotImage('Guincho');
 });
