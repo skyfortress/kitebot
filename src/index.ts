@@ -125,7 +125,7 @@ bot.on('message', async(msg) => {
         type: "function",
         function: {
           name: "getSpotImages",
-          description: "Get live images from the spot.",
+          description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
           parameters: {
             type: "object",
             properties: {
@@ -147,26 +147,17 @@ bot.on('message', async(msg) => {
 
   console.log(responseMessage);
   const toolCalls = responseMessage.tool_calls;
+
+  if (responseMessage.content) {
+    await bot.sendMessage(chatId, responseMessage.content);
+  }
+
   if (toolCalls) {
     console.log('Got tools call', toolCalls);
-
     messages.push(responseMessage); // extend conversation with assistant's reply
     let images: Buffer[] = [];
     for (const toolCall of toolCalls) {
       const functionName = toolCall.function.name as keyof typeof availableFunctions;
-      if (functionName === 'getSpotImages') {
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [...messages.slice(0, 2), {
-            role: "user",
-            content: [
-              { type: "text", text: "Скажи, що ти зараз глянеш веб камери." }
-            ],
-          },
-        ],
-        });
-        await bot.sendMessage(chatId, response.choices[0].message.content!);
-      }
       const functionToCall = availableFunctions[functionName];
       const functionArgs = JSON.parse(toolCall.function.arguments);
       images = await functionToCall(
@@ -202,8 +193,6 @@ bot.on('message', async(msg) => {
     await bot.sendPhoto(chatId, images[answer.bestScreenIndex], {
       caption: answer.message
     });
-  } else {
-    await bot.sendMessage(chatId, responseMessage.content!);
   }
 });
 
