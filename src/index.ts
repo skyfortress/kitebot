@@ -5,7 +5,6 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { join } from 'path';
 import { firefox, devices } from 'playwright';
 import { Browser, BrowserContext } from '@playwright/test';
-import { readFileSync } from 'node:fs';
 
 let browser: Browser;
 let context: BrowserContext;
@@ -35,7 +34,7 @@ const availableWebcams = {
 };
 
 
-const getSpotImage = async (location: keyof typeof availableWebcams) => {
+const getSpotImages = async (location: keyof typeof availableWebcams): Promise<Buffer[]> => {
   console.log('Getting image for', location);
   const page = await context.newPage();
   await page.goto(availableWebcams[location]);
@@ -44,12 +43,22 @@ const getSpotImage = async (location: keyof typeof availableWebcams) => {
   await page.getByLabel('video').first().click();
   await page.getByRole('button', { name: 'Fullscreen' }).click();
   await page.waitForTimeout(2000);
-  const image = await page.screenshot();
-  console.log('Image is ready');
+  const image1 = await page.screenshot();
+  console.log('Image 1 is ready');
+  await page.waitForTimeout(15000);
+  const image2 = await page.screenshot();
+  console.log('Image 2 is ready');
+  await page.waitForTimeout(15000);
+  const image3 = await page.screenshot();
+  console.log('Image 3 is ready');
   await page.close();
 
-  return image;
+  return [image1, image2, image3];
 };
+
+const availableFunctions = {
+  getSpotImages: getSpotImages,
+} as const; // only one function in this example, but you can have multiple
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
@@ -73,16 +82,41 @@ bot.on('message', async(msg) => {
     {
       role: "user",
       content: [
-        { type: "text", text: "Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira" }
-      ],
-    },
-    {
-      role: "user",
-      content: [
-        { type: "text", text: msg.text }
+        { type: "text", text: `Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira. 
+        CHANGELOG:
+         25-05-2024
+         - getSpotImages now returns 3 images with time interval instead of 1, best one is being sent to the chat
+         - bot sends an immediate response that it started looking at webcams
+         - now you can reply to bot messages
+         - bot understands other message quote in your message
+        ` }
       ],
     },
   ];
+
+
+  if (msg.reply_to_message) {
+    if (msg.reply_to_message.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)) {
+      messages.push({
+        role: "assistant",
+        content: msg.reply_to_message.text,
+      });
+    } else {
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text: `${msg.reply_to_message.from?.first_name}: ${msg.reply_to_message.text!}` }
+        ],
+      });
+    }
+  }
+
+  messages.push({
+    role: "user",
+    content: [
+      { type: "text", text: msg.text }
+    ],
+  });
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -90,8 +124,8 @@ bot.on('message', async(msg) => {
       {
         type: "function",
         function: {
-          name: "getSpotImage",
-          description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
+          name: "getSpotImages",
+          description: "Get live images from the spot.",
           parameters: {
             type: "object",
             properties: {
@@ -111,48 +145,62 @@ bot.on('message', async(msg) => {
   });
   const responseMessage = response.choices[0].message!;
 
-
+  console.log(responseMessage);
   const toolCalls = responseMessage.tool_calls;
   if (toolCalls) {
     console.log('Got tools call', toolCalls);
-    // Step 3: call the function
-    // Note: the JSON response may not always be valid; be sure to handle errors
-    const availableFunctions: {[key: string]: CallableFunction} = {
-      getSpotImage: getSpotImage,
-    }; // only one function in this example, but you can have multiple
 
     messages.push(responseMessage); // extend conversation with assistant's reply
-    let image = null;
+    let images: Buffer[] = [];
     for (const toolCall of toolCalls) {
-      const functionName = toolCall.function.name;
+      const functionName = toolCall.function.name as keyof typeof availableFunctions;
+      if (functionName === 'getSpotImages') {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [...messages.slice(0, 2), {
+            role: "user",
+            content: [
+              { type: "text", text: "Скажи, що ти зараз глянеш веб камери." }
+            ],
+          },
+        ],
+        });
+        await bot.sendMessage(chatId, response.choices[0].message.content!);
+      }
       const functionToCall = availableFunctions[functionName];
       const functionArgs = JSON.parse(toolCall.function.arguments);
-      image = await functionToCall(
+      images = await functionToCall(
         functionArgs.location,
       );
       messages.push({
         tool_call_id: toolCall.id,
         role: "tool",
         name: functionName,
-        content: 'ok',
+        content: 'Відповідь формуй у форматі JSON без Markdown: {message: string; bestScreenIndex: number}',
       } as ChatCompletionMessageParam);
 
       messages.push({
         role: "user",
-        content: [{
-          type: "image_url",
-          image_url: {
-            "url": `data:image/jpeg;base64,${image.toString('base64')}`,
-          },
-        }],
+        content: [
+          ...images.map(image => {
+            return {
+              type: "image_url",
+              image_url: {
+                "url": `data:image/jpeg;base64,${image.toString('base64')}`,
+              }
+            };
+          })
+        ],
       } as ChatCompletionMessageParam);
     }
     const secondResponse = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: messages,
     }); // get a new response from the model where it can see the function response
-    await bot.sendPhoto(chatId, image, {
-      caption: secondResponse.choices[0].message.content!
+    const answer: {message: string; bestScreenIndex: number} = JSON.parse(secondResponse.choices[0].message.content!);
+    console.log(answer);
+    await bot.sendPhoto(chatId, images[answer.bestScreenIndex], {
+      caption: answer.message
     });
   } else {
     await bot.sendMessage(chatId, responseMessage.content!);
