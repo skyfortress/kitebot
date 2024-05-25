@@ -167,7 +167,7 @@ bot.on('message', async(msg) => {
         tool_call_id: toolCall.id,
         role: "tool",
         name: functionName,
-        content: 'Опиши фото і скажи чи бачиш кайти, відповідь формуй у форматі JSON без Markdown: {message: string; bestScreenIndex: number}',
+        content: 'Відповідь формуй у форматі JSON без Markdown: {message: string; bestScreenIndex: number}',
       } as ChatCompletionMessageParam);
 
       messages.push({
