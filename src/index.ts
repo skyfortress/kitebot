@@ -82,14 +82,7 @@ bot.on('message', async(msg) => {
     {
       role: "user",
       content: [
-        { type: "text", text: `Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira. 
-        CHANGELOG:
-         25-05-2024
-         - getSpotImages now returns 3 images with time interval instead of 1, best one is being sent to the chat
-         - bot sends an immediate response that it started looking at webcams
-         - now you can reply to bot messages
-         - bot understands other message quote in your message
-        ` }
+        { type: "text", text: `Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira.` }
       ],
     },
   ];
