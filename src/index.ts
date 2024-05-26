@@ -69,12 +69,22 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(chatId, 'Hi! I am your bot. How can I help you?');
 });
 
+const shouldReply = (msg: TelegramBot.Message) => {
+  if (msg.text?.includes(process.env.TELEGRAM_BOT_NAME!) 
+    || msg.chat.type === 'private' 
+    || msg.reply_to_message?.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // Listen for any kind of message. There are different kinds of messages.
 bot.on('message', async(msg) => {
   console.log(msg);
   const chatId: number = msg.chat.id;
 
-  if ((!msg.text || !msg.text.includes(process.env.TELEGRAM_BOT_NAME!) && msg.chat.type !== 'private') ) {
+  if (!shouldReply(msg)) {
     return;
   }
 
@@ -107,7 +117,7 @@ bot.on('message', async(msg) => {
   messages.push({
     role: "user",
     content: [
-      { type: "text", text: msg.text }
+      { type: "text", text: msg.text! }
     ],
   });
 
