@@ -31,6 +31,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const availableWebcams = {
   'Guincho': 'https://beachcam.meo.pt/livecams/praia-do-guincho/',
   'Albufeira': 'https://beachcam.meo.pt/livecams/lagoa-de-albufeira/',
+  'Fonta': 'https://beachcam.meo.pt/livecams/fonte-da-telha/',
+  'Obidos': 'https://beachcam.meo.pt/livecams/foz-do-arelho/'
 };
 
 
@@ -92,7 +94,7 @@ bot.on('message', async(msg) => {
     {
       role: "user",
       content: [
-        { type: "text", text: `Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira.` }
+        { type: "text", text: `Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira, фонта чи белла вішта - це fonta, обідош - це obidos.` }
       ],
     },
   ];
@@ -102,7 +104,7 @@ bot.on('message', async(msg) => {
     if (msg.reply_to_message.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)) {
       messages.push({
         role: "assistant",
-        content: msg.reply_to_message.text,
+        content: msg.reply_to_message.text || msg.reply_to_message.caption,
       });
     } else {
       messages.push({
