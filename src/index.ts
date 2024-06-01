@@ -3,204 +3,189 @@ import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { join } from 'path';
-import { firefox, devices } from 'playwright';
-import { Browser, BrowserContext } from '@playwright/test';
+import { prepareEnvirnoment } from './lib/browser';
+import { Locations, availableSpots } from './config';
+import { getForecast, getSpotImages } from './lib/tools';
+import { shouldReply } from './lib/messaging';
+import { startCase } from 'lodash';
 
-let browser: Browser;
-let context: BrowserContext;
-const prepareEnvirnoment = async () => {
-  browser = await firefox.launch();
-  context = await browser.newContext({
-    ...devices['Desktop Firefox'],
-  });
-  context.addCookies([
-    { 
-      name: '.AspNetCore.Identity.Application', 
-      value:
-      'CfDJ8LwlmD2SdXJLg6EFh_xHq-px_3NVkCv3glMW5Hnlz24X7n26kGON2UbZtwiv-zPcZvTRZoXNdEppDnjtrOu8NbK19hoyHuFMPE9GCK1nsgbjg9jsVswMOWX6KwBaZQOVFF23vHP11ZwOvFRp68deY7mCf2Su4XKoHKGOSGbG7ivDwkVf7mQZZmnqfj_KsFAwu4PGBg5YBg7fDlNIcjhdIb-7XSfI6vTnLT-CqoqfrAl_oqcRAWqob5HFW1lj0xZ_d3blxU9p3Nmz952LoAlg_KK937ah6pK37Xu2ofAAT-VN6S7350TUWzAYmCBFaccZvwVR8Me3mtrdpiDzCtD6wPQJkp8cjDVzX2tPuhzyEVg1wG80dPd1fn4SW82wb_DrnqG5dMDouLVfzyu-YPBU1TVhA6wwBs6gmqzDHTkv9JWQOhUXhjls38nrmOr0o45azXQc63bPxopNLoJMKXssW8Gv4WwBq0rimatQjq5lBLuIRcbxr7rLsL0VVYUgP--lt6W9pkCwlcqR-hiofX-EkKqTV7ZRKmmy_2wn0L9ZRCBR4OpnEWLJgrgz20KPejST2tQ9UI-EPpQJy1uHrmTQtdsld64K807wacjBxQPFLq0crSbl5EvO_5OurVVzUolCkqEQ1b9FMh3FCS7MCb1Hu5CtOZi3RkE26BSEP3bPw2a2bKj_w4rbyeUA9Pr5VS8wvssIGvW8XkPd7C_inSeSwSE',
-      path: '/',
-      domain: 'beachcam.meo.pt',
-    }
-  ]); //TODO: move to env
-  return { browser, context };
-};
 
 dotenv.config({ path: join(__dirname, '../.env')});
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-const availableWebcams = {
-  'Guincho': 'https://beachcam.meo.pt/livecams/praia-do-guincho/',
-  'Albufeira': 'https://beachcam.meo.pt/livecams/lagoa-de-albufeira/',
-  'Fonta': 'https://beachcam.meo.pt/livecams/fonte-da-telha/',
-  'Obidos': 'https://beachcam.meo.pt/livecams/foz-do-arelho/'
-};
-
-
-const getSpotImages = async (location: keyof typeof availableWebcams): Promise<Buffer[]> => {
-  console.log('Getting image for', location);
-  const page = await context.newPage();
-  await page.goto(availableWebcams[location]);
-
-  await page.getByLabel('video').first().scrollIntoViewIfNeeded();
-  await page.getByLabel('video').first().click();
-  await page.getByRole('button', { name: 'Fullscreen' }).click();
-  await page.waitForTimeout(2000);
-  const image1 = await page.screenshot();
-  console.log('Image 1 is ready');
-  await page.waitForTimeout(15000);
-  const image2 = await page.screenshot();
-  console.log('Image 2 is ready');
-  await page.waitForTimeout(15000);
-  const image3 = await page.screenshot();
-  console.log('Image 3 is ready');
-  await page.close();
-
-  return [image1, image2, image3];
-};
-
-const availableFunctions = {
-  getSpotImages: getSpotImages,
-} as const; // only one function in this example, but you can have multiple
-
-// Create a bot that uses 'polling' to fetch new updates
-const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
-
-// Matches "/start"
-bot.onText(/\/start/, (msg) => {
-  const chatId: number = msg.chat.id;
-  bot.sendMessage(chatId, 'Hi! I am your bot. How can I help you?');
-});
-
-const shouldReply = (msg: TelegramBot.Message) => {
-  if (msg.text?.includes(process.env.TELEGRAM_BOT_NAME!) 
-    || msg.chat.type === 'private' 
-    || msg.reply_to_message?.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)
-  ) {
-    return true;
-  }
-  return false;
-}
-
-// Listen for any kind of message. There are different kinds of messages.
-bot.on('message', async(msg) => {
-  console.log(msg);
-  const chatId: number = msg.chat.id;
-
-  if (!shouldReply(msg)) {
-    return;
-  }
-
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "user",
-      content: [
-        { type: "text", text: `Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira, фонта чи белла вішта - це fonta, обідош - це obidos.` }
-      ],
-    },
-  ];
-
-
-  if (msg.reply_to_message) {
-    if (msg.reply_to_message.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)) {
-      messages.push({
-        role: "assistant",
-        content: msg.reply_to_message.text || msg.reply_to_message.caption,
-      });
-    } else {
-      messages.push({
-        role: "user",
-        content: [
-          { type: "text", text: `${msg.reply_to_message.from?.first_name}: ${msg.reply_to_message.text!}` }
-        ],
-      });
-    }
-  }
-
-  messages.push({
-    role: "user",
-    content: [
-      { type: "text", text: msg.text! }
-    ],
-  });
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    tools: [
-      {
-        type: "function",
-        function: {
-          name: "getSpotImages",
-          description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
-          parameters: {
-            type: "object",
-            properties: {
-              location: {
-                type: "string",
-                description: "The spot name",
-              },
-              unit: { type: "string", enum: Object.keys(availableWebcams) },
-            },
-            required: ["location"],
-          },
-        },
-      },
-    ],
-    tool_choice: 'auto',
-    messages: messages,
-  });
-  const responseMessage = response.choices[0].message!;
-
-  console.log(responseMessage);
-  const toolCalls = responseMessage.tool_calls;
-
-  if (responseMessage.content) {
-    await bot.sendMessage(chatId, responseMessage.content);
-  }
-
-  if (toolCalls) {
-    console.log('Got tools call', toolCalls);
-    messages.push(responseMessage); // extend conversation with assistant's reply
-    let images: Buffer[] = [];
-    for (const toolCall of toolCalls) {
-      const functionName = toolCall.function.name as keyof typeof availableFunctions;
-      const functionToCall = availableFunctions[functionName];
-      const functionArgs = JSON.parse(toolCall.function.arguments);
-      images = await functionToCall(
-        functionArgs.location,
-      );
-      messages.push({
-        tool_call_id: toolCall.id,
-        role: "tool",
-        name: functionName,
-        content: 'Відповідь формуй у форматі JSON без Markdown: {message: string; bestScreenIndex: number}',
-      } as ChatCompletionMessageParam);
-
-      messages.push({
-        role: "user",
-        content: [
-          ...images.map(image => {
-            return {
-              type: "image_url",
-              image_url: {
-                "url": `data:image/jpeg;base64,${image.toString('base64')}`,
-              }
-            };
-          })
-        ],
-      } as ChatCompletionMessageParam);
-    }
-    const secondResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: messages,
-    }); // get a new response from the model where it can see the function response
-    const answer: {message: string; bestScreenIndex: number} = JSON.parse(secondResponse.choices[0].message.content!);
-    console.log(answer);
-    await bot.sendPhoto(chatId, images[answer.bestScreenIndex], {
-      caption: answer.message
-    });
-  }
-});
-
-prepareEnvirnoment().then(async () => {
+prepareEnvirnoment().then(async ({ context }) => {
   console.log('Browser is ready');
+  // Create a bot that uses 'polling' to fetch new updates
+  const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
+
+  bot.on('message', async(msg) => {
+    console.log(msg);
+    const chatId: number = msg.chat.id;
+    try {
+      if (!shouldReply(msg)) {
+        return;
+      }
+    
+      const currentDate = new Date().toISOString();
+    
+      const messages: ChatCompletionMessageParam[] = [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `Output only plain text. Do not output markdown. Today: ${currentDate}. Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт, gust - порив. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira, фонта чи белла вішта - це fonta, обідош - це obidos.` }
+          ],
+        },
+      ];
+    
+    
+      if (msg.reply_to_message) {
+        if (msg.reply_to_message.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)) {
+          messages.push({
+            role: "assistant",
+            content: msg.reply_to_message.text || msg.reply_to_message.caption,
+          });
+        } else {
+          messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: `${msg.reply_to_message.from?.first_name}: ${msg.reply_to_message.text!}` }
+            ],
+          });
+        }
+      }
+    
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text: msg.text! }
+        ],
+      });
+    
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "getForecast",
+              description: "Get forecast for the given spot.",
+              parameters: {
+                type: "object",
+                properties: {
+                  location: {
+                    type: "string",
+                    description: "The spot name",
+                  },
+                  unit: { type: "string", enum: Object.keys(availableSpots) },
+                },
+                required: ["location"],
+              },
+            },
+          },
+          // should be last
+          {
+            type: "function",
+            function: {
+              name: "getSpotImages",
+              description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
+              parameters: {
+                type: "object",
+                properties: {
+                  location: {
+                    type: "string",
+                    description: "The spot name",
+                  },
+                  unit: { type: "string", enum: Object.keys(availableSpots) },
+                },
+                required: ["location"],
+              },
+            },
+          },
+        ],
+        tool_choice: 'auto',
+        messages: messages,
+      });
+      const responseMessage = response.choices[0].message!;
+    
+      console.log(responseMessage);
+      const toolCalls = responseMessage.tool_calls;
+    
+      if (responseMessage.content) {
+        await bot.sendMessage(chatId, responseMessage.content);
+      }
+    
+      if (toolCalls) {
+        console.log('Got tools call', toolCalls);
+        messages.push(responseMessage); // extend conversation with assistant's reply
+        let images: Buffer[] = [];
+        for (const toolCall of toolCalls) {
+          const functionName = toolCall.function.name as 'getForecast' | 'getSpotImages';
+          const functionArgs = JSON.parse(toolCall.function.arguments);
+
+          const location = startCase(functionArgs.location) as Locations;
+          
+          if (functionName === 'getForecast') {
+            const forecast = await getForecast(context, location);
+            messages.push({
+              tool_call_id: toolCall.id,
+              role: "tool",
+              name: functionName,
+              content: `
+              Build forecast only for kiteable hours, include wind speed, gustyness, wave height and temp in your message. Gusty wind is not good for kiting. Don't respond without any numbers.
+              Forecast: ${JSON.stringify(forecast)}`,
+            } as ChatCompletionMessageParam);
+          }
+          // should be last as we include image as user msg to the end of tools calls
+          if (functionName === 'getSpotImages') {
+            await bot.sendMessage(chatId, 'Дивлюсь камери 👀. Зачекай');
+            images = await getSpotImages(context, functionArgs.location);
+            messages.push({
+              tool_call_id: toolCall.id,
+              role: "tool",
+              name: functionName,
+              content: 'provided by user next',
+            } as ChatCompletionMessageParam);
+
+            messages.push({
+              role: "user",
+              content: [
+                {
+                  type: 'text',
+                  text: 'Send responsse in JSON fromat: {message: string; bestScreenIndex: number}'
+                },
+                ...images.map(image => {
+                  return {
+                    type: "image_url",
+                    image_url: {
+                      "url": `data:image/jpeg;base64,${image.toString('base64')}`,
+                    }
+                  };
+                })
+              ],
+            } as ChatCompletionMessageParam);
+          }
+        }
+        const secondResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: messages,
+        });
+
+        const msg = secondResponse.choices[0].message.content!;
+        console.log(msg);
+
+        if (msg[0] === '{') {
+          const structedMessage: {message: string; bestScreenIndex: number} = JSON.parse(msg);
+          await bot.sendPhoto(chatId, images[structedMessage.bestScreenIndex], {
+            caption: structedMessage.message,
+          });
+        } else {
+          await bot.sendMessage(chatId, msg);
+        }
+
+      }
+    } catch (err) {
+      const error = err as Error;
+      await bot.sendMessage(chatId, `Error: ${error.message}\nStack trace:\n${error.stack}`);
+    }
+  });
 });
