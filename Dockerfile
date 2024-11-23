@@ -18,7 +18,10 @@ COPY package.json yarn.lock ./
 RUN yarn install --production
 
 # Runtime Stage
-FROM mcr.microsoft.com/playwright:latest
+FROM mcr.microsoft.com/playwright:v1.49.0-noble
+
+RUN rm -rf /ms-playwright/webkit-*
+RUN rm -rf /ms-playwright/chromium-*
 
 WORKDIR /usr/src/web
 
