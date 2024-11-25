@@ -25,7 +25,6 @@ RUN rm -rf /ms-playwright/chromium-*
 
 WORKDIR /usr/src/web
 
-
 COPY --from=builder /usr/src/web/dist ./dist
 COPY --from=dependencies /usr/src/web/node_modules ./node_modules
 
