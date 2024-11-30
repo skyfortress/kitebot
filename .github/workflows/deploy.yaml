@@ -43,3 +43,22 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+      - name: Checkout Infra Repository
+        uses: actions/checkout@v3
+        with: 
+          repository: skyfortress/infra
+          token: ${{ secrets.GH_TOKEN }}
+      - uses: benjlevesque/short-sha@v3.0
+        id: short-sha
+      - name: Get SDK Version from config
+        id: lookupSdkVersion
+        uses: mikefarah/yq@master
+        with:
+          cmd: yq eval -i '.images[] |= select(.name == "docker.io/skyfortress/kitebot") |= .newTag = "sha-${{ steps.short-sha.outputs.sha }}"' kitebot/kustomization.yaml
+      - name: Commit to Infra Repository
+        run: |
+          git config user.name github-actions
+          git config user.email ci@skyfortress.dev
+          git add .
+          git commit -m "build: automatic update of kitebot"
+          git push
