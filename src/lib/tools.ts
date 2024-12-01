@@ -6,22 +6,15 @@ export const getSpotImages = async (context: BrowserContext, location: Locations
     console.log('Getting image for', location);
     const page = await context.newPage();
     await page.goto(availableSpots[location].webcam);
-  
     await page.getByLabel('video').first().scrollIntoViewIfNeeded();
     await page.getByLabel('video').first().click();
     await page.getByRole('button', { name: 'Fullscreen' }).click();
     await page.waitForTimeout(2000);
     const image1 = await page.screenshot();
-    console.log('Image 1 is ready');
-    await page.waitForTimeout(15000);
-    const image2 = await page.screenshot();
-    console.log('Image 2 is ready');
-    await page.waitForTimeout(15000);
-    const image3 = await page.screenshot();
-    console.log('Image 3 is ready');
+
     await page.close();
   
-    return [image1, image2, image3];
+    return [image1];
   };
   
   // TODO: reduce number of tokens 
