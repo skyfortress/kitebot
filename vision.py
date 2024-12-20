@@ -11,8 +11,8 @@ image_path =  sys.argv[1]
 image = Image.open(image_path)
 
 # Initialize processor and model
-processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-101", revision="no_timm")
-model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-101", revision="no_timm")
+processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50", revision="no_timm")
+model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50", revision="no_timm")
 
 # Prepare inputs
 inputs = processor(images=image, return_tensors="pt")
