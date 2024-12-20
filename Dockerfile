@@ -25,6 +25,9 @@ RUN rm -rf /ms-playwright/chromium-*
 
 WORKDIR /usr/src/web
 
+RUN apt update && apt install python3-pip -y
+COPY requirements.txt vision.py ./
+RUN pip3 install -r requirements.txt --no-cache-dir --break-system-packages
 
 COPY --from=builder /usr/src/web/dist ./dist
 COPY --from=dependencies /usr/src/web/node_modules ./node_modules

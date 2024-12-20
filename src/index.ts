@@ -5,18 +5,52 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { join } from 'path';
 import { prepareEnvirnoment } from './lib/browser';
 import { Locations, availableSpots } from './config';
-import { getForecast, getSpotImages } from './lib/tools';
+import { analyzeImage, getForecast, getSpotImages } from './lib/tools';
 import { shouldReply } from './lib/messaging';
 import { startCase } from 'lodash';
+import { connectToMongoDB } from './lib/db';
+import { registerScheduler } from './scheduler';
+import SpotService from './services/spotService';
 
 
 dotenv.config({ path: join(__dirname, '../.env')});
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
+
 prepareEnvirnoment().then(async ({ context }) => {
   console.log('Browser is ready');
+  const connection = await connectToMongoDB();
+  await registerScheduler(context, connection);
+  const spotServcie = new SpotService(connection);
   // Create a bot that uses 'polling' to fetch new updates
   const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
+
+  bot.setMyCommands([
+    { command: 'check', description: 'Check some spot' },
+  ]);
+
+  const processCommand = async (msg: TelegramBot.Message) => {
+    const chatId = msg.chat.id;
+    const text = msg.text || '';
+  
+    if (text.startsWith('/check')) {
+      const param = text.split(' ').slice(1).join(' '); // Extract parameters after the command
+      if (param) {
+        const spot = await spotServcie.getSpotByName(param);
+        if(!spot) {
+          bot.sendMessage(chatId, `Spot ${param} not found`);
+          return true;
+        }
+        const imagePath = await getSpotImages(context, spot);
+        const result = await analyzeImage(imagePath);
+        bot.sendMessage(chatId, JSON.stringify(result));
+      } else {
+        bot.sendMessage(chatId, 'Usage: /check <spot>');
+      }
+      return true;
+    }
+    return false;
+  };
 
   bot.on('message', async(msg) => {
     console.log(msg);
@@ -25,7 +59,12 @@ prepareEnvirnoment().then(async ({ context }) => {
       if (!shouldReply(msg)) {
         return;
       }
-    
+
+      const isCommandHandled = await processCommand(msg);
+      if (isCommandHandled) {
+        return;
+      }
+
       const currentDate = new Date().toISOString();
     
       const messages: ChatCompletionMessageParam[] = [
@@ -83,24 +122,24 @@ prepareEnvirnoment().then(async ({ context }) => {
             },
           },
           // should be last
-          {
-            type: "function",
-            function: {
-              name: "getSpotImages",
-              description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
-              parameters: {
-                type: "object",
-                properties: {
-                  location: {
-                    type: "string",
-                    description: "The spot name",
-                  },
-                  unit: { type: "string", enum: Object.keys(availableSpots) },
-                },
-                required: ["location"],
-              },
-            },
-          },
+          // {
+          //   type: "function",
+          //   function: {
+          //     name: "getSpotImages",
+          //     description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
+          //     parameters: {
+          //       type: "object",
+          //       properties: {
+          //         location: {
+          //           type: "string",
+          //           description: "The spot name",
+          //         },
+          //         unit: { type: "string", enum: Object.keys(availableSpots) },
+          //       },
+          //       required: ["location"],
+          //     },
+          //   },
+          // },
         ],
         tool_choice: 'auto',
         messages: messages,
@@ -136,34 +175,34 @@ prepareEnvirnoment().then(async ({ context }) => {
             } as ChatCompletionMessageParam);
           }
           // should be last as we include image as user msg to the end of tools calls
-          if (functionName === 'getSpotImages') {
-            await bot.sendMessage(chatId, 'Дивлюсь камери 👀. Зачекай');
-            images = await getSpotImages(context, functionArgs.location);
-            messages.push({
-              tool_call_id: toolCall.id,
-              role: "tool",
-              name: functionName,
-              content: 'provided by user next',
-            } as ChatCompletionMessageParam);
+          // if (functionName === 'getSpotImages') {
+          //   await bot.sendMessage(chatId, 'Дивлюсь камери 👀. Зачекай');
+          //   images = await getSpotImages(context, functionArgs.location);
+          //   messages.push({
+          //     tool_call_id: toolCall.id,
+          //     role: "tool",
+          //     name: functionName,
+          //     content: 'provided by user next',
+          //   } as ChatCompletionMessageParam);
 
-            messages.push({
-              role: "user",
-              content: [
-                {
-                  type: 'text',
-                  text: 'Send responsse in JSON fromat: {message: string; bestScreenIndex: number}'
-                },
-                ...images.map(image => {
-                  return {
-                    type: "image_url",
-                    image_url: {
-                      "url": `data:image/jpeg;base64,${image.toString('base64')}`,
-                    }
-                  };
-                })
-              ],
-            } as ChatCompletionMessageParam);
-          }
+          //   messages.push({
+          //     role: "user",
+          //     content: [
+          //       {
+          //         type: 'text',
+          //         text: 'Send responsse in JSON fromat: {message: string; bestScreenIndex: number}'
+          //       },
+          //       ...images.map(image => {
+          //         return {
+          //           type: "image_url",
+          //           image_url: {
+          //             "url": `data:image/jpeg;base64,${image.toString('base64')}`,
+          //           }
+          //         };
+          //       })
+          //     ],
+          //   } as ChatCompletionMessageParam);
+          //}
         }
         const secondResponse = await openai.chat.completions.create({
           model: "gpt-4o",

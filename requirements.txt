@@ -1,0 +1,5 @@
+torch 
+torchvision
+transformers[torch]
+pillow
+matplotlib

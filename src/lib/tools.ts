@@ -1,20 +1,23 @@
 import { BrowserContext } from "@playwright/test";
 import { zipWith } from "lodash";
 import { Locations, availableSpots } from "../config";
+import { resolve } from "path";
+import { runPythonScript } from "./helpers";
+import { Observation, Spot } from "../types";
 
-export const getSpotImages = async (context: BrowserContext, location: Locations): Promise<Buffer[]> => {
-    console.log('Getting image for', location);
+export const getSpotImages = async (context: BrowserContext, spot: Spot): Promise<string> => {
+    console.log('Getting image for', spot.name);
     const page = await context.newPage();
-    await page.goto(availableSpots[location].webcam);
+    await page.goto(spot.webcam);
     await page.getByLabel('video').first().scrollIntoViewIfNeeded();
     await page.getByLabel('video').first().click();
     await page.getByRole('button', { name: 'Fullscreen' }).click();
     await page.waitForTimeout(2000);
-    const image1 = await page.screenshot();
-
+    const timestamp = new Date().toISOString().slice(0, 19);
+    const path = resolve(__dirname, '../../images', spot.name, `${timestamp}.jpg`); // TODO: generate dynamic image name
+    await page.screenshot({ path });
     await page.close();
-  
-    return [image1];
+    return path;
   };
   
   // TODO: reduce number of tokens 
@@ -64,4 +67,9 @@ export const getSpotImages = async (context: BrowserContext, location: Locations
     await page.close();
   
     return forecast.slice(0, 20); // TODO: find better way
+  }
+
+  export async function analyzeImage(path: string): Promise<Observation> {
+    const res = await runPythonScript('vision.py', [path]);
+    return JSON.parse(res);
   }

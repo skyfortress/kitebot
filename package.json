@@ -13,14 +13,20 @@
     "dotenv": "^16.4.5",
     "form-data": "^4.0.0",
     "lodash": "^4.17.21",
+    "luxon": "^3.5.0",
+    "mongodb": "^6.12.0",
     "node-telegram-bot-api": "^0.66.0",
-    "openai": "^4.47.1"
+    "openai": "^4.47.1",
+    "suncalc": "^1.9.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.4",
+    "@types/luxon": "^3.4.2",
     "@types/node": "^20.12.12",
     "@types/node-telegram-bot-api": "^0.64.6",
+    "@types/suncalc": "^1.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"
-  }
+  },
+  "packageManager": "yarn@1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447"
 }

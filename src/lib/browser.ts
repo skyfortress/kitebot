@@ -19,7 +19,7 @@ export async function meoLogin(context: BrowserContext) {
 }
 
 export const prepareEnvirnoment = async () => {
-  const context = await firefox.launchPersistentContext('.browser', { headless: true, serviceWorkers: 'block' });
+  const context = await firefox.launchPersistentContext('.browser', { headless: !process.env.DEBUG, serviceWorkers: 'block' });
 
   context.addCookies([
     {
@@ -28,7 +28,7 @@ export const prepareEnvirnoment = async () => {
       path: '/',
       domain: 'www.windguru.cz'
     },
-  ]); //TODO: move to env
+  ]);
 
   await meoLogin(context);
   setInterval(async () => {

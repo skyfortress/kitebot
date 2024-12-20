@@ -1,0 +1,5 @@
+services:
+  kitebot:
+    build:
+      context: .
+    env_file: .env
