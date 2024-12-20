@@ -18,14 +18,13 @@ COPY package.json yarn.lock ./
 RUN yarn install --production
 
 # Runtime Stage
-FROM mcr.microsoft.com/playwright:v1.49.0-noble
+FROM python:3.12-bookworm
 
-RUN rm -rf /ms-playwright/webkit-*
-RUN rm -rf /ms-playwright/chromium-*
+RUN apt update && apt install -y nodejs npm ffmpeg
+RUN npm install -g playwright@1.49.0
+RUN playwright install firefox --with-deps
 
 WORKDIR /usr/src/web
-
-RUN apt update && apt install --no-upgrade python3-pip -y
 COPY requirements.txt vision.py ./
 RUN pip3 install -r requirements.txt --no-cache-dir --break-system-packages
 
