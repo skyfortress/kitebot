@@ -3,7 +3,7 @@ FROM node:22 AS builder
 
 WORKDIR /usr/src/web
 
-COPY package.json yarn.lock ./
+COPY package.json yarn.lock detr-resnet-101 ./
 RUN yarn install --production=false
 
 COPY . .
