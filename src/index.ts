@@ -11,6 +11,7 @@ import { startCase } from 'lodash';
 import { connectToMongoDB } from './lib/db';
 import { registerScheduler } from './scheduler';
 import SpotService from './services/spotService';
+import { startAiServer } from './lib/ai';
 
 
 dotenv.config({ path: join(__dirname, '../.env')});
@@ -19,6 +20,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 prepareEnvirnoment().then(async ({ context }) => {
   console.log('Browser is ready');
+  startAiServer();
   const connection = await connectToMongoDB();
   await registerScheduler(context, connection);
   const spotServcie = new SpotService(connection);

@@ -2,7 +2,6 @@ import { BrowserContext } from "@playwright/test";
 import { zipWith } from "lodash";
 import { Locations, availableSpots } from "../config";
 import { resolve } from "path";
-import { runPythonScript } from "./helpers";
 import { Observation, Spot } from "../types";
 
 export const getSpotImages = async (context: BrowserContext, spot: Spot): Promise<string> => {
@@ -70,6 +69,15 @@ export const getSpotImages = async (context: BrowserContext, spot: Spot): Promis
   }
 
   export async function analyzeImage(path: string): Promise<Observation> {
-    const res = await runPythonScript('vision.py', [path]);
-    return JSON.parse(res);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/?imagePath=${path}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      throw error;
+    }
   }

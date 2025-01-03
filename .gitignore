@@ -5,3 +5,6 @@ test-results
 dist
 images
 .browser
+detr-resnet-*
+.DS_Store
+__pycache__
