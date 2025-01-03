@@ -3,7 +3,7 @@ FROM node:22 AS builder
 
 WORKDIR /usr/src/web
 
-COPY package.json yarn.lock detr-resnet-101 ./
+COPY package.json yarn.lock ./
 RUN yarn install --production=false
 
 COPY . .
@@ -25,7 +25,7 @@ RUN npm install -g playwright@1.49.0
 RUN playwright install firefox --with-deps
 
 WORKDIR /usr/src/web
-COPY requirements.txt vision.py ./
+COPY requirements.txt vision.py detr-resnet-101 ./
 RUN pip3 install -r requirements.txt --no-cache-dir --break-system-packages
 
 COPY --from=builder /usr/src/web/dist ./dist
