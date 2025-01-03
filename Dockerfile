@@ -27,7 +27,8 @@ RUN playwright install firefox --with-deps
 WORKDIR /usr/src/web
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt --no-cache-dir --break-system-packages
-COPY vision.py detr-resnet-101 ./
+COPY vision.py ./
+COPY detr-resnet-101 ./detr-resnet-101
 COPY --from=builder /usr/src/web/dist ./dist
 COPY --from=dependencies /usr/src/web/node_modules ./node_modules
 
