@@ -1,12 +1,13 @@
 import TelegramBot from 'node-telegram-bot-api';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import fs from 'fs/promises';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { join } from 'path';
 import { prepareEnvirnoment } from './lib/browser';
 import { Locations, availableSpots } from './config';
 import { analyzeImage, getForecast, getSpotImages } from './lib/tools';
-import { shouldReply } from './lib/messaging';
+import { messageMeAboutKiters, shouldReply } from './lib/messaging';
 import { startCase } from 'lodash';
 import { connectToMongoDB } from './lib/db';
 import { registerScheduler } from './scheduler';
@@ -15,17 +16,18 @@ import { startAiServer } from './lib/ai';
 
 
 dotenv.config({ path: join(__dirname, '../.env')});
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
+export const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+export const PROMPT = `Output only plain text. Do not output markdown. Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт, gust - порив. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira, фонта чи белла вішта - це fonta, обідош - це obidos.`;
 
 prepareEnvirnoment().then(async ({ context }) => {
   console.log('Browser is ready');
   startAiServer();
   const connection = await connectToMongoDB();
-  await registerScheduler(context, connection);
+  const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
+
+  await registerScheduler(context, connection, bot);
   const spotServcie = new SpotService(connection);
   // Create a bot that uses 'polling' to fetch new updates
-  const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
 
   bot.setMyCommands([
     { command: 'check', description: 'Check some spot' },
@@ -36,16 +38,17 @@ prepareEnvirnoment().then(async ({ context }) => {
     const text = msg.text || '';
   
     if (text.startsWith('/check')) {
+      // TODO: refactor
       const param = text.split(' ').slice(1).join(' '); // Extract parameters after the command
       if (param) {
         const spot = await spotServcie.getSpotByName(param);
-        if(!spot) {
+        if (!spot) {
           bot.sendMessage(chatId, `Spot ${param} not found`);
           return true;
         }
         const imagePath = await getSpotImages(context, spot);
-        const result = await analyzeImage(imagePath);
-        bot.sendMessage(chatId, JSON.stringify(result));
+        const result = await analyzeImage(spot, imagePath);
+        await messageMeAboutKiters(result, bot);
       } else {
         bot.sendMessage(chatId, 'Usage: /check <spot>');
       }
@@ -73,7 +76,7 @@ prepareEnvirnoment().then(async ({ context }) => {
         {
           role: "user",
           content: [
-            { type: "text", text: `Output only plain text. Do not output markdown. Today: ${currentDate}. Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт, gust - порив. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira, фонта чи белла вішта - це fonta, обідош - це obidos.` }
+            { type: "text", text: `${PROMPT} Today: ${currentDate}.` }
           ],
         },
       ];

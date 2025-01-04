@@ -12,6 +12,6 @@ export interface Spot extends Document {
 export interface Observation extends Document {
     _id?: ObjectId;
     file: string;
+    spot: string;
     matches: {label: string, confidence: number}[];
 }
-

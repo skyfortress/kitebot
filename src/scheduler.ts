@@ -4,8 +4,10 @@ import { analyzeImage, getSpotImages } from "./lib/tools";
 import { BrowserContext } from "@playwright/test";
 import { Observation, Spot } from "./types";
 import { DateTime } from 'luxon';
+import { messageMeAboutKiters } from "./lib/messaging";
+import TelegramBot from "node-telegram-bot-api";
 
-export async function registerScheduler(context: BrowserContext, client: MongoClient) {
+export async function registerScheduler(context: BrowserContext, client: MongoClient, bot: TelegramBot) {
     setInterval(async() => {
         const now = new Date();
         const times = getTimes(now, 38.7131707, -9.4054484); // Cascais
@@ -19,8 +21,12 @@ export async function registerScheduler(context: BrowserContext, client: MongoCl
             if (now > spot.nextCheck) {
                 console.log(`Performing spot check for ${spot.name}`);
                 const imagePath = await getSpotImages(context, spot);
-                const result = await analyzeImage(imagePath);
+                const result = await analyzeImage(spot, imagePath);
                 const hasKiters = result.matches.some(el => el.label === 'kite');
+                //TODO: for debug only 
+                if (hasKiters) {
+                    await messageMeAboutKiters(result, bot);
+                }
 
                 const lastKiterSeenMinutes = DateTime.fromJSDate(spot.lastKiterSeen).diffNow().as('minutes');
 
