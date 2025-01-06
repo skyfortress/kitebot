@@ -32,4 +32,4 @@ COPY detr-resnet-101 ./detr-resnet-101
 COPY --from=builder /usr/src/web/dist ./dist
 COPY --from=dependencies /usr/src/web/node_modules ./node_modules
 
-CMD ["node", "dist/index.js"]
+CMD ["npm", "run", "start:prod"]

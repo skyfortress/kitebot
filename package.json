@@ -1,15 +1,21 @@
 {
   "name": "skyfortress",
   "version": "1.0.0",
-  "main": "index.js",
   "license": "MIT",
+  "main": "dist/main",
   "scripts": {
-    "start": "ts-node-dev --respawn --exit-child --transpile-only src/index.ts",
-    "build": "tsc"
+    "build": "nest build",
+    "start:dev": "concurrently \"nest start --watch\" \"fastapi run vision.py\"",
+    "start:prod": "concurrently \"node .\" \"fastapi run vision.py\""
   },
   "dependencies": {
+    "@nestjs/common": "^10.4.15",
+    "@nestjs/core": "^10.4.15",
+    "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/schedule": "^4.1.2",
     "@playwright/test": "1.49.0",
     "axios": "^1.6.8",
+    "concurrently": "^9.1.2",
     "dotenv": "^16.4.5",
     "form-data": "^4.0.0",
     "lodash": "^4.17.21",
@@ -17,16 +23,25 @@
     "mongodb": "^6.12.0",
     "node-telegram-bot-api": "^0.66.0",
     "openai": "^4.47.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
     "suncalc": "^1.9.0"
   },
   "devDependencies": {
+    "@nestjs/cli": "^10.4.9",
+    "@nestjs/schematics": "^10.2.3",
     "@types/lodash": "^4.17.4",
     "@types/luxon": "^3.4.2",
-    "@types/node": "^20.12.12",
+    "@types/node": "^22.10.5",
     "@types/node-telegram-bot-api": "^0.64.6",
     "@types/suncalc": "^1.9.2",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.7.2"
   },
   "packageManager": "yarn@1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447"
 }

@@ -1,128 +1,152 @@
+import { Observation } from '@app/mongodb/types';
+import { PROMPT } from '@app/openai/consts';
+import { Inject, Injectable } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
-import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import fs from 'fs/promises';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { join } from 'path';
-import { prepareEnvirnoment } from './lib/browser';
-import { Locations, availableSpots } from './config';
-import { analyzeImage, getForecast, getSpotImages } from './lib/tools';
-import { messageMeAboutKiters, shouldReply } from './lib/messaging';
+import { ChatCompletionMessageParam } from 'openai/resources';
 import { startCase } from 'lodash';
-import { connectToMongoDB } from './lib/db';
-import { registerScheduler } from './scheduler';
-import SpotService from './services/spotService';
-import { startAiServer } from './lib/ai';
+import { availableSpots, Locations } from '@app/config';
+import { BrowserService } from '@app/browser/browser.service';
+import { SpotService } from '@app/spot/spot.service';
+import { VisionService } from '@app/vision/vision.service';
 
+@Injectable()
+export class TelegramService {
+  constructor(
+    @Inject('OPENAI') private readonly openai: OpenAI,
+    @Inject('TELEGRAM_BOT') private readonly bot: TelegramBot,
+    private readonly browserService: BrowserService,
+    private readonly spotService: SpotService,
+    private readonly visionService: VisionService,
+  ) {
+    bot.setMyCommands([{ command: 'check', description: 'Check some spot' }]);
+    this.bot.on('message', this.processMessage.bind(this));
+  }
 
-dotenv.config({ path: join(__dirname, '../.env')});
-export const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-export const PROMPT = `Output only plain text. Do not output markdown. Говори українською, використовуючи зумерський сленг та емоджі. Замість повітряний змій кажи кайт, gust - порив. Гуінчо, гінчо - це Guincho, a лда, алба, альбуфейра, альба - це albufeira, фонта чи белла вішта - це fonta, обідош - це obidos.`;
+  public shouldReply(msg: TelegramBot.Message) {
+    if (
+      msg.text?.includes(process.env.TELEGRAM_BOT_NAME!) ||
+      msg.chat.type === 'private' ||
+      msg.reply_to_message?.from?.username ===
+        process.env.TELEGRAM_BOT_NAME!.slice(1)
+    ) {
+      return true;
+    }
+    return false;
+  }
 
-prepareEnvirnoment().then(async ({ context }) => {
-  console.log('Browser is ready');
-  startAiServer();
-  const connection = await connectToMongoDB();
-  const bot: TelegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!, { polling: true });
+  public async messageMeAboutKiters(result: Observation) {
+    const image = await fs.readFile(result.file);
+    const response = await this.openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'assistant',
+          content: `${PROMPT}. You will be given information about the kiters on the spot ${result.spot}. Make your conclusion about given data. No data means kiters weren't detected on the spot.`,
+        },
+        { role: 'user', content: JSON.stringify(result.matches) },
+      ],
+    });
+    const responseMessage = response.choices[0].message!;
 
-  await registerScheduler(context, connection, bot);
-  const spotServcie = new SpotService(connection);
-  // Create a bot that uses 'polling' to fetch new updates
+    // TODO: replce chatId with your chat id
+    await this.bot.sendPhoto(90780619, image, {
+      caption: responseMessage.content!,
+    });
+  }
 
-  bot.setMyCommands([
-    { command: 'check', description: 'Check some spot' },
-  ]);
-
-  const processCommand = async (msg: TelegramBot.Message) => {
+  async processCommand(msg: TelegramBot.Message) {
     const chatId = msg.chat.id;
     const text = msg.text || '';
-  
+
     if (text.startsWith('/check')) {
       // TODO: refactor
       const param = text.split(' ').slice(1).join(' '); // Extract parameters after the command
       if (param) {
-        const spot = await spotServcie.getSpotByName(param);
+        const spot = await this.spotService.getSpotByName(param);
         if (!spot) {
-          bot.sendMessage(chatId, `Spot ${param} not found`);
+          this.bot.sendMessage(chatId, `Spot ${param} not found`);
           return true;
         }
-        const imagePath = await getSpotImages(context, spot);
-        const result = await analyzeImage(spot, imagePath);
-        await messageMeAboutKiters(result, bot);
+        const imagePath = await this.browserService.getSpotImages(spot);
+        const result = await this.visionService.analyzeImage(spot, imagePath);
+        await this.messageMeAboutKiters(result);
       } else {
-        bot.sendMessage(chatId, 'Usage: /check <spot>');
+        this.bot.sendMessage(chatId, 'Usage: /check <spot>');
       }
       return true;
     }
     return false;
-  };
+  }
 
-  bot.on('message', async(msg) => {
+  async processMessage(msg: TelegramBot.Message) {
     console.log(msg);
     const chatId: number = msg.chat.id;
     try {
-      if (!shouldReply(msg)) {
+      if (!this.shouldReply(msg)) {
         return;
       }
 
-      const isCommandHandled = await processCommand(msg);
+      const isCommandHandled = await this.processCommand(msg);
       if (isCommandHandled) {
         return;
       }
 
       const currentDate = new Date().toISOString();
-    
+
       const messages: ChatCompletionMessageParam[] = [
         {
-          role: "user",
-          content: [
-            { type: "text", text: `${PROMPT} Today: ${currentDate}.` }
-          ],
+          role: 'user',
+          content: [{ type: 'text', text: `${PROMPT} Today: ${currentDate}.` }],
         },
       ];
-    
-    
+
       if (msg.reply_to_message) {
-        if (msg.reply_to_message.from?.username === process.env.TELEGRAM_BOT_NAME!.slice(1)) {
+        if (
+          msg.reply_to_message.from?.username ===
+          process.env.TELEGRAM_BOT_NAME!.slice(1)
+        ) {
           messages.push({
-            role: "assistant",
+            role: 'assistant',
             content: msg.reply_to_message.text || msg.reply_to_message.caption,
           });
         } else {
           messages.push({
-            role: "user",
+            role: 'user',
             content: [
-              { type: "text", text: `${msg.reply_to_message.from?.first_name}: ${msg.reply_to_message.text!}` }
+              {
+                type: 'text',
+                text: `${msg.reply_to_message.from?.first_name}: ${msg.reply_to_message.text!}`,
+              },
             ],
           });
         }
       }
-    
+
       messages.push({
-        role: "user",
-        content: [
-          { type: "text", text: msg.text! }
-        ],
+        role: 'user',
+        content: [{ type: 'text', text: msg.text! }],
       });
-    
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o',
         tools: [
           {
-            type: "function",
+            type: 'function',
             function: {
-              name: "getForecast",
-              description: "Get forecast for the given spot.",
+              name: 'getForecast',
+              description: 'Get forecast for the given spot.',
               parameters: {
-                type: "object",
+                type: 'object',
                 properties: {
                   location: {
-                    type: "string",
-                    description: "The spot name",
+                    type: 'string',
+                    description: 'The spot name',
                   },
-                  unit: { type: "string", enum: Object.keys(availableSpots) },
+                  unit: { type: 'string', enum: Object.keys(availableSpots) },
                 },
-                required: ["location"],
+                required: ['location'],
               },
             },
           },
@@ -150,29 +174,31 @@ prepareEnvirnoment().then(async ({ context }) => {
         messages: messages,
       });
       const responseMessage = response.choices[0].message!;
-    
+
       console.log(responseMessage);
       const toolCalls = responseMessage.tool_calls;
-    
+
       if (responseMessage.content) {
-        await bot.sendMessage(chatId, responseMessage.content);
+        await this.bot.sendMessage(chatId, responseMessage.content);
       }
-    
+
       if (toolCalls) {
         console.log('Got tools call', toolCalls);
         messages.push(responseMessage); // extend conversation with assistant's reply
-        let images: Buffer[] = [];
+        const images: Buffer[] = [];
         for (const toolCall of toolCalls) {
-          const functionName = toolCall.function.name as 'getForecast' | 'getSpotImages';
+          const functionName = toolCall.function.name as
+            | 'getForecast'
+            | 'getSpotImages';
           const functionArgs = JSON.parse(toolCall.function.arguments);
 
           const location = startCase(functionArgs.location) as Locations;
-          
+
           if (functionName === 'getForecast') {
-            const forecast = await getForecast(context, location);
+            const forecast = await this.browserService.getForecast(location);
             messages.push({
               tool_call_id: toolCall.id,
-              role: "tool",
+              role: 'tool',
               name: functionName,
               content: `
               Build forecast only for kiteable hours, include wind speed, gustyness, wave height and temp in your message. Gusty wind is not good for kiting. Don't respond without any numbers.
@@ -209,8 +235,8 @@ prepareEnvirnoment().then(async ({ context }) => {
           //   } as ChatCompletionMessageParam);
           //}
         }
-        const secondResponse = await openai.chat.completions.create({
-          model: "gpt-4o",
+        const secondResponse = await this.openai.chat.completions.create({
+          model: 'gpt-4o',
           messages: messages,
         });
 
@@ -218,18 +244,27 @@ prepareEnvirnoment().then(async ({ context }) => {
         console.log(msg);
 
         if (msg[0] === '{') {
-          const structedMessage: {message: string; bestScreenIndex: number} = JSON.parse(msg);
-          await bot.sendPhoto(chatId, images[structedMessage.bestScreenIndex], {
-            caption: structedMessage.message,
-          });
+          const structedMessage: {
+            message: string;
+            bestScreenIndex: number;
+          } = JSON.parse(msg);
+          await this.bot.sendPhoto(
+            chatId,
+            images[structedMessage.bestScreenIndex],
+            {
+              caption: structedMessage.message,
+            },
+          );
         } else {
-          await bot.sendMessage(chatId, msg);
+          await this.bot.sendMessage(chatId, msg);
         }
-
       }
     } catch (err) {
       const error = err as Error;
-      await bot.sendMessage(chatId, `Error: ${error.message}\nStack trace:\n${error.stack}`);
+      await this.bot.sendMessage(
+        chatId,
+        `Error: ${error.message}\nStack trace:\n${error.stack}`,
+      );
     }
-  });
-});
+  }
+}
