@@ -1,5 +1,6 @@
 import { Spot } from '@app/mongodb/types';
 import { Inject, Injectable } from '@nestjs/common';
+import { DateTime } from 'luxon';
 import { Collection, Db, MongoClient } from 'mongodb';
 
 @Injectable()
@@ -18,8 +19,8 @@ export class SpotService {
     return this.collection.find().toArray();
   }
 
-  async getSpotById(id: string): Promise<Spot | null> {
-    return this.collection.findOne({ id });
+  async getSpotsForCheck(): Promise<Spot[]> {
+    return this.collection.find({ nextCheck: { $lt: new Date() } }).toArray();
   }
 
   async getSpotByName(name: string): Promise<Spot | null> {
@@ -30,11 +31,24 @@ export class SpotService {
     await this.collection.insertOne(spot);
   }
 
-  async updateSpot(id: string, spot: Partial<Spot>): Promise<void> {
-    await this.collection.updateOne({ id }, { $set: spot });
-  }
+  async scheduleNextCheck(spot: Spot, hasKiters: boolean): Promise<void> {
+    const lastKiterSeenMinutes = DateTime.fromJSDate(spot.lastKiterSeen)
+      .diffNow()
+      .as('minutes');
 
-  async deleteSpot(id: string): Promise<void> {
-    await this.collection.deleteOne({ id });
+    await this.collection.updateOne(
+      { _id: spot._id },
+      {
+        $set: {
+          hasKiters,
+          lastKiterSeen: hasKiters ? new Date() : spot.lastKiterSeen,
+          nextCheck: DateTime.now()
+            .plus({
+              minutes: hasKiters && lastKiterSeenMinutes < 30 ? 5 : 30,
+            })
+            .toJSDate(),
+        },
+      },
+    );
   }
 }

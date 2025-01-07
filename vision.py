@@ -80,7 +80,8 @@ def analyze_image(image_path):
     print(f"Inference time: {inference_time:.4f} seconds")
 
     return {
-        "file": new_file_path,
+        "file": image_path,
+        "analyzedFile": new_file_path,
         "matches": matches
     }
 

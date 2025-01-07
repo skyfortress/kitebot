@@ -1,4 +1,4 @@
-import { Observation } from '@app/mongodb/types';
+import { Observation, Spot } from '@app/mongodb/types';
 import { PROMPT } from '@app/openai/consts';
 import { Inject, Injectable } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
@@ -36,14 +36,14 @@ export class TelegramService {
     return false;
   }
 
-  public async messageMeAboutKiters(result: Observation) {
+  public async messageMeAboutKiters(spot: Spot, result: Observation) {
     const image = await fs.readFile(result.file);
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'assistant',
-          content: `${PROMPT}. You will be given information about the kiters on the spot ${result.spot}. Make your conclusion about given data. No data means kiters weren't detected on the spot.`,
+          content: `${PROMPT}. You will be given information about the kiters on the spot ${spot.name}. Make your conclusion about given data. No data means kiters weren't detected on the spot.`,
         },
         { role: 'user', content: JSON.stringify(result.matches) },
       ],
@@ -69,9 +69,12 @@ export class TelegramService {
           this.bot.sendMessage(chatId, `Spot ${param} not found`);
           return true;
         }
-        const imagePath = await this.browserService.getSpotImages(spot);
-        const result = await this.visionService.analyzeImage(spot, imagePath);
-        await this.messageMeAboutKiters(result);
+        const imagePath = await this.browserService.getSpotImages({
+          spot,
+          amount: 1,
+        });
+        const result = await this.visionService.analyzeImage(imagePath[0]);
+        await this.messageMeAboutKiters(spot, result);
       } else {
         this.bot.sendMessage(chatId, 'Usage: /check <spot>');
       }
@@ -81,7 +84,6 @@ export class TelegramService {
   }
 
   async processMessage(msg: TelegramBot.Message) {
-    console.log(msg);
     const chatId: number = msg.chat.id;
     try {
       if (!this.shouldReply(msg)) {

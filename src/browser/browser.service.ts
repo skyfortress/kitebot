@@ -37,24 +37,43 @@ export class BrowserService implements OnModuleInit {
     console.log('logged in');
   }
 
-  async getSpotImages(spot: Spot): Promise<string> {
+  async getSpotImages({
+    spot,
+    amount,
+    delay,
+  }: {
+    spot: Spot;
+    amount: number;
+    delay?: number;
+  }): Promise<string[]> {
     console.log('Getting image for', spot.name);
     const page = await this.context.newPage();
     await page.goto(spot.webcam);
     await page.getByLabel('video').first().scrollIntoViewIfNeeded();
-    await page.getByLabel('video').first().click();
+    await page.getByLabel('video').first().click({ timeout: 60000 });
     await page.getByRole('button', { name: 'Fullscreen' }).click();
     await page.waitForTimeout(2000);
-    const timestamp = new Date().toISOString().slice(0, 19);
-    const path = resolve(
-      __dirname,
-      '../../images',
-      spot.name,
-      `${timestamp}.jpg`,
-    ); // TODO: generate dynamic image name
-    await page.screenshot({ path });
+
+    const screenshots = [];
+    for (let i = 0; i < amount; i++) {
+      console.log('Taking screenshot', i);
+      const timestamp = new Date().toISOString().slice(0, 19);
+      const path = resolve(
+        __dirname,
+        '../../images',
+        spot.name,
+        `${timestamp}.jpg`,
+      );
+      await page.screenshot({
+        path,
+      });
+      screenshots.push(path);
+      if (amount > 1 && delay) {
+        await page.waitForTimeout(delay);
+      }
+    }
     await page.close();
-    return path;
+    return screenshots;
   }
 
   // TODO: reduce number of tokens
