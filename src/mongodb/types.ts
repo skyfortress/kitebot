@@ -4,6 +4,7 @@ export interface Spot {
   _id?: ObjectId;
   name: string;
   webcam: string;
+  ignoreNight: boolean;
   hasKiters: boolean;
   lastKiterSeen: Date;
   nextCheck: Date;

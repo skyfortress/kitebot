@@ -25,13 +25,17 @@ export class WatcherService {
     const times = getTimes(now, 38.7131707, -9.4054484); // Cascais
     const isDay = times.sunrise < now && now < times.sunset;
     const activeTasks = await this.taskService.getActiveTasks();
-    if (!isDay || activeTasks.length > 0) {
+    if (activeTasks.length > 0) {
       return;
     }
 
     const spots = await this.spotService.getSpotsForCheck();
 
     for (const spot of spots) {
+      if (!isDay && !spot.ignoreNight) {
+        console.log('Skipping spot check as it is night time');
+        continue;
+      }
       console.log(`Performing spot check for ${spot.name}`);
       const task = await this.taskService.createTask(spot);
       try {
@@ -49,6 +53,7 @@ export class WatcherService {
         const resultWithKiters = results.find((el) =>
           el.matches.some((el) => el.label === 'kite'),
         );
+
         //TODO: for debug only
         if (resultWithKiters) {
           await this.telegramService.messageMeAboutKiters(
@@ -61,8 +66,9 @@ export class WatcherService {
         await this.spotService.scheduleNextCheck(spot, !!resultWithKiters);
       } catch (e) {
         console.log('Error while processing task', e);
-        //TODO: add backoff strategy for spot check
         await this.taskService.failTask(task, e);
+        //TODO: add backoff strategy for spot check
+        await this.spotService.scheduleNextCheck(spot, false);
       }
     }
   }

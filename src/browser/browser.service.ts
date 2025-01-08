@@ -48,32 +48,51 @@ export class BrowserService implements OnModuleInit {
   }): Promise<string[]> {
     console.log('Getting image for', spot.name);
     const page = await this.context.newPage();
-    await page.goto(spot.webcam);
-    await page.getByLabel('video').first().scrollIntoViewIfNeeded();
-    await page.getByLabel('video').first().click({ timeout: 60000 });
-    await page.getByRole('button', { name: 'Fullscreen' }).click();
-    await page.waitForTimeout(2000);
+    try {
+      await page.goto(spot.webcam);
+      await page.getByLabel('video').first().scrollIntoViewIfNeeded();
+      await page.getByLabel('video').first().click({ timeout: 60000 });
+      await page
+        .getByRole('button', { name: 'Fullsreen' })
+        .click({ timeout: 60000 });
 
-    const screenshots = [];
-    for (let i = 0; i < amount; i++) {
-      console.log('Taking screenshot', i);
+      await page.waitForTimeout(2000);
+
+      const screenshots = [];
+      for (let i = 0; i < amount; i++) {
+        console.log('Taking screenshot', i);
+        const timestamp = new Date().toISOString().slice(0, 19);
+        const path = resolve(
+          __dirname,
+          '../../images',
+          spot.name,
+          `${timestamp}.jpg`,
+        );
+        await page.screenshot({
+          path,
+        });
+        screenshots.push(path);
+        if (amount > 1 && delay) {
+          await page.waitForTimeout(delay);
+        }
+      }
+      return screenshots;
+    } catch (e) {
       const timestamp = new Date().toISOString().slice(0, 19);
       const path = resolve(
         __dirname,
-        '../../images',
-        spot.name,
+        '../../images/failed',
         `${timestamp}.jpg`,
       );
       await page.screenshot({
         path,
       });
-      screenshots.push(path);
-      if (amount > 1 && delay) {
-        await page.waitForTimeout(delay);
-      }
+      e.screenshot = path;
+      console.error('Error while getting image:', e);
+      throw e;
+    } finally {
+      await page.close();
     }
-    await page.close();
-    return screenshots;
   }
 
   // TODO: reduce number of tokens
