@@ -31,11 +31,22 @@ export class SpotService {
     await this.collection.insertOne(spot);
   }
 
-  async scheduleNextCheck(spot: Spot, hasKiters: boolean): Promise<void> {
-    const lastKiterSeenMinutes = DateTime.fromJSDate(spot.lastKiterSeen)
-      .diffNow()
-      .as('minutes');
+  async setKiteableForecast(
+    spot: Spot,
+    hasKiteableForecast: boolean,
+  ): Promise<void> {
+    await this.collection.updateOne(
+      { _id: spot._id },
+      {
+        $set: {
+          ...(hasKiteableForecast ? { nextCheck: new Date() } : {}), //don't wait for the next check if we have a kiteable forecast
+          hasKiteableForecast,
+        },
+      },
+    );
+  }
 
+  async scheduleNextCheck(spot: Spot, hasKiters: boolean): Promise<void> {
     await this.collection.updateOne(
       { _id: spot._id },
       {
@@ -44,7 +55,7 @@ export class SpotService {
           lastKiterSeen: hasKiters ? new Date() : spot.lastKiterSeen,
           nextCheck: DateTime.now()
             .plus({
-              minutes: hasKiters && lastKiterSeenMinutes < 30 ? 5 : 30,
+              minutes: spot.hasKiteableForecast ? 15 : 60,
             })
             .toJSDate(),
         },

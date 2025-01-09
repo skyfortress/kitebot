@@ -194,19 +194,19 @@ export class TelegramService {
             | 'getSpotImages';
           const functionArgs = JSON.parse(toolCall.function.arguments);
 
-          const location = startCase(functionArgs.location) as Locations;
+          //   const location = startCase(functionArgs.location) as Locations;
 
-          if (functionName === 'getForecast') {
-            const forecast = await this.browserService.getForecast(location);
-            messages.push({
-              tool_call_id: toolCall.id,
-              role: 'tool',
-              name: functionName,
-              content: `
-              Build forecast only for kiteable hours, include wind speed, gustyness, wave height and temp in your message. Gusty wind is not good for kiting. Don't respond without any numbers.
-              Forecast: ${JSON.stringify(forecast)}`,
-            } as ChatCompletionMessageParam);
-          }
+          //   if (functionName === 'getForecast') {
+          //     const forecast = await this.browserService.getForecast(location);
+          //     messages.push({
+          //       tool_call_id: toolCall.id,
+          //       role: 'tool',
+          //       name: functionName,
+          //       content: `
+          //       Build forecast only for kiteable hours, include wind speed, gustyness, wave height and temp in your message. Gusty wind is not good for kiting. Don't respond without any numbers.
+          //       Forecast: ${JSON.stringify(forecast)}`,
+          //     } as ChatCompletionMessageParam);
+          //   }
           // should be last as we include image as user msg to the end of tools calls
           // if (functionName === 'getSpotImages') {
           //   await bot.sendMessage(chatId, 'Дивлюсь камери 👀. Зачекай');

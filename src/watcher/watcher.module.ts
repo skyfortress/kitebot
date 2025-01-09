@@ -5,6 +5,7 @@ import { VisionModule } from '@app/vision/vision.module';
 import { BrowserModule } from '@app/browser/browser.module';
 import { TaskModule } from '@app/task/task.module';
 import { SpotModule } from '@app/spot/spot.module';
+import { ForecastModule } from '@app/forecast/forecast.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { SpotModule } from '@app/spot/spot.module';
     VisionModule,
     BrowserModule,
     SpotModule,
+    ForecastModule,
   ],
   providers: [WatcherService],
 })

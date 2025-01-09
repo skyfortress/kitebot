@@ -7,6 +7,7 @@ import { VisionService } from '@app/vision/vision.service';
 import { Observation } from '@app/mongodb/types';
 import { TaskService } from '@app/task/task.service';
 import { SpotService } from '@app/spot/spot.service';
+import { ForecastService } from '@app/forecast/forecast.service';
 
 @Injectable()
 export class WatcherService {
@@ -16,6 +17,7 @@ export class WatcherService {
     private readonly visionService: VisionService,
     private readonly taskService: TaskService,
     private readonly spotService: SpotService,
+    private readonly forecastService: ForecastService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -70,6 +72,20 @@ export class WatcherService {
         //TODO: add backoff strategy for spot check
         await this.spotService.scheduleNextCheck(spot, false);
       }
+    }
+  }
+
+  @Cron(CronExpression.EVERY_3_HOURS)
+  async checkForecast() {
+    const spots = await this.spotService.getAllSpots();
+    for (const spot of spots) {
+      console.log(`Checking forecast for ${spot.name}`);
+      const forecastItems = await this.browserService.getForecast(spot);
+      const forecast = await this.forecastService.storeForecast(
+        spot,
+        forecastItems,
+      );
+      await this.spotService.setKiteableForecast(spot, forecast.isKitebable);
     }
   }
 }

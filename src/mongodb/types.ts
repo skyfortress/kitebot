@@ -4,8 +4,11 @@ export interface Spot {
   _id?: ObjectId;
   name: string;
   webcam: string;
+  forecast: string;
+  isOcean: boolean;
   ignoreNight: boolean;
   hasKiters: boolean;
+  hasKiteableForecast: boolean;
   lastKiterSeen: Date;
   nextCheck: Date;
 }
@@ -32,4 +35,20 @@ export interface Task {
   updatedAt: Date;
   error?: Error;
   results: Observation[];
+}
+
+export interface ForecastItem {
+  date: Date;
+  speed: number;
+  gusts: number;
+  temperature: number;
+  wave: number;
+}
+
+export interface Forecast {
+  _id?: ObjectId;
+  spot: string;
+  createdAt: Date;
+  isKitebable: boolean;
+  items: ForecastItem[];
 }
