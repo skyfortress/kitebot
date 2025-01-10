@@ -52,7 +52,7 @@ export class BrowserService implements OnModuleInit {
       await page.getByLabel('video').first().scrollIntoViewIfNeeded();
       await page.getByLabel('video').first().click({ timeout: 60000 });
       await page
-        .getByRole('button', { name: 'Fullsreen' })
+        .getByRole('button', { name: 'Fullscreen' })
         .click({ timeout: 60000 });
 
       await page.waitForTimeout(2000);
