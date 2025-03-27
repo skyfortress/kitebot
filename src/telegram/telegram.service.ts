@@ -23,7 +23,11 @@ export class TelegramService {
     private readonly visionService: VisionService,
     private readonly settingsService: SettingsService,
   ) {
-    bot.setMyCommands([{ command: 'check', description: 'Check some spot' }]);
+    bot.setMyCommands([
+      { command: 'check', description: 'Перевірити спот' },
+      { command: 'enableWatch', description: 'Включити сповіщення про споти' },
+      { command: 'disableWatch', description: 'Виключити сповіщення про споти' }
+    ]);
     this.bot.on('message', this.processMessage.bind(this));
   }
 
