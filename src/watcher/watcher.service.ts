@@ -50,8 +50,8 @@ export class WatcherService {
       try {
         const images = await this.browserService.getSpotImages({
           spot,
-          amount: 4,
-          delay: 15000,
+          amount: 10,
+          delay: 20000,
         });
 
         const results: Observation[] = [];
