@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Query
 from contextlib import asynccontextmanager
 import time
-from vision_new import setup_model, post_process, CLASSES, IMG_SIZE
+from vision_new import setup_model, post_process, verify_image_size, CLASSES
 import cv2
-from coco_utils import COCO_test_helper
 
 model = None
 @asynccontextmanager
@@ -26,9 +25,7 @@ def analyze_image(image_path):
     if img_src is None:
         raise Exception("Failed to load image")
 
-    co_helper = COCO_test_helper(enable_letter_box=True)
-    img = co_helper.letter_box(im= img_src.copy(), new_shape=(IMG_SIZE[1], IMG_SIZE[0]), pad_color=(0,0,0))
-    img = cv2.cvtColor(img_src, cv2.COLOR_BGR2RGB)
+    img = verify_image_size(img_src.copy())
     outputs = model.run([img])
     boxes, classes, scores = post_process(outputs)
 
@@ -47,12 +44,14 @@ def analyze_image(image_path):
     cv2.imwrite(analyzed_path, img_src)
 
     end_time = time.time()
-    print(f"Inference time: {end_time - start_time:.4f} seconds")
+    inference_time = f"{end_time - start_time:.4f}s"
+    print(f"Inference time: {inference_time}")
 
     return {
         "file": image_path,
         "analyzedFile": analyzed_path,
-        "matches": matches
+        "matches": matches,
+        "inferenceTime": inference_time,
     }
 
 @app.get("/")

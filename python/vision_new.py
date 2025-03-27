@@ -178,6 +178,14 @@ def img_check(path):
             return True
     return False
 
+
+def verify_image_size(img):
+    """Verify and resize image if needed"""
+    if img.shape[:2] != (IMG_SIZE[1], IMG_SIZE[0]):
+        print(f"Warning: Input image size {img.shape[:2]} does not match required size {(IMG_SIZE[1], IMG_SIZE[0])}")
+        img = cv2.resize(img, (IMG_SIZE[0], IMG_SIZE[1]))
+    return img
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
     # basic params
