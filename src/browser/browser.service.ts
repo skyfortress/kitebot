@@ -1,16 +1,35 @@
 import { ForecastItem, Spot } from '@app/mongodb/types';
-import { Inject, Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { BrowserContext } from '@playwright/test';
 import { zipWith } from 'lodash';
 import { resolve } from 'path';
-import { createBrowser } from './browser.module';
+import { firefox } from '@playwright/test';
 
 @Injectable()
 export class BrowserService implements OnModuleInit, OnModuleDestroy {
-  constructor(@Inject('BROWSER') private context: BrowserContext) {}
+  private context: BrowserContext
+
+  async createBrowser() {
+    const context = await firefox.launchPersistentContext('.browser', {
+      headless: !process.env.DEBUG,
+      serviceWorkers: 'block',
+    });
+    
+    context.addCookies([
+      {
+        name: 'wgcookie',
+        value: '2|msd|c|m|3|22||384|forecast|185|||0|1|_|0|||||||||cm',
+        path: '/',
+        domain: 'www.windguru.cz',
+      },
+    ]);
+    console.log('Browser is opened');
+    this.context = context;
+  }
 
   async onModuleInit() {
+    await this.createBrowser();
     await this.meoLogin();
   }
 
@@ -22,7 +41,7 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
   async restartBrowser() {
     console.log('Restarting browser');
     await this.context.close();
-    this.context = await createBrowser();
+    await this.createBrowser();
     await this.meoLogin();
   }
 
