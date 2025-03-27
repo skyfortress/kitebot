@@ -10,6 +10,8 @@ import { availableSpots, Locations } from '@app/config';
 import { BrowserService } from '@app/browser/browser.service';
 import { SpotService } from '@app/spot/spot.service';
 import { VisionService } from '@app/vision/vision.service';
+import { SettingsService } from '@app/settings/settings.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class TelegramService {
@@ -19,9 +21,20 @@ export class TelegramService {
     private readonly browserService: BrowserService,
     private readonly spotService: SpotService,
     private readonly visionService: VisionService,
+    private readonly settingsService: SettingsService,
   ) {
     bot.setMyCommands([{ command: 'check', description: 'Check some spot' }]);
     this.bot.on('message', this.processMessage.bind(this));
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleStateChange() {
+    const { enabled } = await this.settingsService.getSettings();
+    if (enabled && !this.bot.isPolling()) {
+      await this.bot.startPolling();
+    } else {
+      await this.bot.stopPolling();
+    }
   }
 
   public shouldReply(msg: TelegramBot.Message) {
@@ -36,7 +49,7 @@ export class TelegramService {
     return false;
   }
 
-  public async messageMeAboutKiters(spot: Spot, result: Observation) {
+  public async messageAboutKiters(spot: Spot, result: Observation) {
     const image = await fs.readFile(result.analyzedFile);
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
@@ -50,10 +63,13 @@ export class TelegramService {
     });
     const responseMessage = response.choices[0].message!;
 
-    // TODO: replce chatId with your chat id
-    await this.bot.sendPhoto(90780619, image, {
-      caption: responseMessage.content!,
-    });
+    const settings = await this.settingsService.getSettings();
+    const subscribedChats = settings.subscribedChats;
+    for (const chatId of subscribedChats) {
+      await this.bot.sendPhoto(chatId, image, {
+        caption: responseMessage.content!,
+      });
+    }
   }
 
   async processCommand(msg: TelegramBot.Message) {
@@ -74,10 +90,25 @@ export class TelegramService {
           amount: 1,
         });
         const result = await this.visionService.analyzeImage(imagePath[0]);
-        await this.messageMeAboutKiters(spot, result);
+        await this.messageAboutKiters(spot, result);
       } else {
         this.bot.sendMessage(chatId, 'Usage: /check <spot>');
       }
+      return true;
+    }
+    if (text.startsWith('/enableWatch')) {
+      await this.settingsService.toggleSubscribedChat(chatId, true);
+      this.bot.sendMessage(chatId, 'Тепер всі апдейти про споти будуть приходити сюди 😎 🚀');
+      return true;
+    }
+    if (text.startsWith('/disableWatch')) {
+      await this.settingsService.toggleSubscribedChat(chatId, false);
+      this.bot.sendMessage(chatId, 'Тепер всі апдейти про споти не будуть приходити сюди 😢');
+      return true;
+    }
+    if (text.startsWith('/halt')) {
+      await this.settingsService.update({ enabled: false });
+      this.bot.sendMessage(chatId, 'Pulling the plug on the bot... 🔌');
       return true;
     }
     return false;

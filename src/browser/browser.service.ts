@@ -1,19 +1,31 @@
 import { ForecastItem, Spot } from '@app/mongodb/types';
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { BrowserContext } from '@playwright/test';
 import { zipWith } from 'lodash';
 import { resolve } from 'path';
+import { createBrowser } from './browser.module';
 
 @Injectable()
-export class BrowserService implements OnModuleInit {
-  constructor(@Inject('BROWSER') private readonly context: BrowserContext) {}
+export class BrowserService implements OnModuleInit, OnModuleDestroy {
+  constructor(@Inject('BROWSER') private context: BrowserContext) {}
 
   async onModuleInit() {
     await this.meoLogin();
   }
 
+  async onModuleDestroy() {
+    await this.context.close();
+  }
+
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async restartBrowser() {
+    console.log('Restarting browser');
+    await this.context.close();
+    this.context = await createBrowser();
+    await this.meoLogin();
+  }
+
   async meoLogin() {
     const page = await this.context.newPage();
 

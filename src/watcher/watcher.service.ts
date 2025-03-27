@@ -8,6 +8,7 @@ import { Observation } from '@app/mongodb/types';
 import { TaskService } from '@app/task/task.service';
 import { SpotService } from '@app/spot/spot.service';
 import { ForecastService } from '@app/forecast/forecast.service';
+import { SettingsService } from '@app/settings/settings.service';
 
 @Injectable()
 export class WatcherService {
@@ -18,10 +19,16 @@ export class WatcherService {
     private readonly taskService: TaskService,
     private readonly spotService: SpotService,
     private readonly forecastService: ForecastService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
   public async watch() {
+    const settings = await this.settingsService.getSettings();
+    if (!settings.enabled) {
+      console.log('Bot is disabled, skipping watcher');
+      return;
+    }
     console.log('Watcher is running');
     const now = new Date();
     const times = getTimes(now, 38.7131707, -9.4054484); // Cascais
@@ -58,25 +65,31 @@ export class WatcherService {
 
         //TODO: for debug only
         if (resultWithKiters) {
-          await this.telegramService.messageMeAboutKiters(
+          await this.telegramService.messageAboutKiters(
             spot,
             resultWithKiters,
           );
+          await this.spotService.scheduleNextCheck({ spot, hasKiters: true, delayMinuntes: 4 * 60 });
+        } else {
+          await this.spotService.scheduleNextCheck({ spot, hasKiters: false, delayMinuntes: spot.hasKiteableForecast ? 15 : 2 * 60 });
         }
-
         await this.taskService.completeTask(task, results);
-        await this.spotService.scheduleNextCheck(spot, !!resultWithKiters);
       } catch (e) {
         console.log('Error while processing task', e);
         await this.taskService.failTask(task, e);
         //TODO: add backoff strategy for spot check
-        await this.spotService.scheduleNextCheck(spot, false);
+        await this.spotService.scheduleNextCheck({ spot, hasKiters: false, delayMinuntes: 60 });
       }
     }
   }
 
   @Cron(CronExpression.EVERY_3_HOURS)
   async checkForecast() {
+    const settings = await this.settingsService.getSettings();
+    if (!settings.enabled) {
+      console.log('Bot is disabled, skipping forecast check');
+      return;
+    }
     const spots = await this.spotService.getAllSpots();
     for (const spot of spots) {
       console.log(`Checking forecast for ${spot.name}`);

@@ -46,7 +46,7 @@ export class SpotService {
     );
   }
 
-  async scheduleNextCheck(spot: Spot, hasKiters: boolean): Promise<void> {
+  async scheduleNextCheck({ spot, hasKiters, delayMinuntes }: { spot: Spot; hasKiters: boolean; delayMinuntes: number; }): Promise<void> {
     await this.collection.updateOne(
       { _id: spot._id },
       {
@@ -55,7 +55,7 @@ export class SpotService {
           lastKiterSeen: hasKiters ? new Date() : spot.lastKiterSeen,
           nextCheck: DateTime.now()
             .plus({
-              minutes: spot.hasKiteableForecast ? 15 : 60,
+              minutes: delayMinuntes,
             })
             .toJSDate(),
         },

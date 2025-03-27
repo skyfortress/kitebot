@@ -9,6 +9,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { WatcherModule } from './watcher/watcher.module';
 import { TaskModule } from './task/task.module';
 import { ForecastModule } from './forecast/forecast.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ForecastModule } from './forecast/forecast.module';
     WatcherModule,
     TaskModule,
     ForecastModule,
+    SettingsModule
   ],
   controllers: [],
   providers: [],
