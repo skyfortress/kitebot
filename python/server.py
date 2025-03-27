@@ -21,7 +21,9 @@ def analyze_image(image_path):
     print(f"Starting image analyzation for: {image_path}")
     start_time = time.time()
 
-    img_src = cv2.imread(image_path)
+    real_path = image_path.replace("/usr/src/web/images", "../../data")
+    img_src = cv2.imread(real_path)
+
     if img_src is None:
         raise Exception("Failed to load image")
 
@@ -41,7 +43,8 @@ def analyze_image(image_path):
                         (top, left - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
     analyzed_path = image_path.replace(".jpg", "_analyzed.jpg")
-    cv2.imwrite(analyzed_path, img_src)
+    analyzed_real_path = real_path.replace(".jpg", "_analyzed.jpg")
+    cv2.imwrite(analyzed_real_path, img_src)
 
     end_time = time.time()
     inference_time = f"{end_time - start_time:.4f}s"

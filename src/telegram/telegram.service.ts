@@ -37,7 +37,7 @@ export class TelegramService {
   }
 
   public async messageMeAboutKiters(spot: Spot, result: Observation) {
-    const image = await fs.readFile(result.file);
+    const image = await fs.readFile(result.analyzedFile);
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
