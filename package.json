@@ -5,8 +5,8 @@
   "main": "dist/main",
   "scripts": {
     "build": "nest build",
-    "start:dev": "concurrently \"nest start --watch\" \"fastapi run vision.py\"",
-    "start:prod": "concurrently \"node .\" \"fastapi run vision.py\""
+    "start:dev": "nest start --watch",
+    "start:prod": "node ."
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

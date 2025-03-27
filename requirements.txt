@@ -1,7 +1,0 @@
-torch 
-torchvision
-transformers[torch]
-fastapi[standard]==0.115.6
-onnxruntime
-pillow
-matplotlib

@@ -39,12 +39,6 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=raw,value=latest
-      - name: Download model
-        run: |
-          mkdir -p detr-resnet-101
-          curl -o detr-resnet-101/model.onnx https://kitebot.s3.eu-central-1.amazonaws.com/detr-resnet-101/model.onnx
-          curl -o detr-resnet-101/config.json https://kitebot.s3.eu-central-1.amazonaws.com/detr-resnet-101/config.json
-          curl -o detr-resnet-101/preprocessor_config.json https://kitebot.s3.eu-central-1.amazonaws.com/detr-resnet-101/preprocessor_config.json
       - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@v5
