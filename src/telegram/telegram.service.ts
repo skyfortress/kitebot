@@ -25,8 +25,8 @@ export class TelegramService {
   ) {
     bot.setMyCommands([
       { command: 'check', description: 'Перевірити спот' },
-      { command: 'enableWatch', description: 'Включити сповіщення про споти' },
-      { command: 'disableWatch', description: 'Виключити сповіщення про споти' }
+      { command: 'watch', description: 'Включити сповіщення про споти' },
+      { command: 'nowatch', description: 'Виключити сповіщення про споти' }
     ]);
     this.bot.on('message', this.processMessage.bind(this));
   }
@@ -34,9 +34,12 @@ export class TelegramService {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleStateChange() {
     const { enabled } = await this.settingsService.getSettings();
-    if (enabled && !this.bot.isPolling()) {
+    const isPolling = this.bot.isPolling();
+    if (enabled && !isPolling) {
+      console.log('Starting telegram bot polling');
       await this.bot.startPolling();
-    } else {
+    } else if (!enabled && isPolling) {
+      console.log('Stopping telegram bot polling');
       await this.bot.stopPolling();
     }
   }
@@ -100,12 +103,12 @@ export class TelegramService {
       }
       return true;
     }
-    if (text.startsWith('/enableWatch')) {
+    if (text.startsWith('/watch')) {
       await this.settingsService.toggleSubscribedChat(chatId, true);
       this.bot.sendMessage(chatId, 'Тепер всі апдейти про споти будуть приходити сюди 😎 🚀');
       return true;
     }
-    if (text.startsWith('/disableWatch')) {
+    if (text.startsWith('/nowatch')) {
       await this.settingsService.toggleSubscribedChat(chatId, false);
       this.bot.sendMessage(chatId, 'Тепер всі апдейти про споти не будуть приходити сюди 😢');
       return true;
