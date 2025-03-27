@@ -165,9 +165,9 @@ def draw(image, boxes, scores, classes):
         cv2.putText(image, '{0} {1:.2f}'.format(CLASSES[cl], score),
                     (top, left - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-def setup_model(args):
+def setup_model(model_path):
     platform = 'rknn'
-    model = RKNN_model_container(args.model_path, 'rk3566', None)
+    model = RKNN_model_container(model_path, 'rk3566', None)
    
     return model, platform
 

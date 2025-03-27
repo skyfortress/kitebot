@@ -2,22 +2,14 @@ from fastapi import FastAPI, Query
 from contextlib import asynccontextmanager
 import time
 from vision_new import setup_model, post_process, CLASSES
-import os
 import cv2
-import numpy as np
-import argparse
 
-# Initialize model outside of app
-parser = argparse.ArgumentParser()
-parser.add_argument('--model_path', type=str, default='./model/vision.rknn')
-args = parser.parse_args([])
 model = None
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     global model
-    model, _ = setup_model(args)
+    model, _ = setup_model(model_path='./model/yolo11.rknn')
     yield
     # Shutdown
     if model:
