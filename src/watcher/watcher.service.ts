@@ -68,6 +68,7 @@ export class WatcherService {
           await this.telegramService.messageAboutKiters(
             spot,
             resultWithKiters,
+            settings.subscribedChats
           );
           await this.spotService.scheduleNextCheck({ spot, hasKiters: true, delayMinuntes: 4 * 60 });
         } else {

@@ -56,7 +56,7 @@ export class TelegramService {
     return false;
   }
 
-  public async messageAboutKiters(spot: Spot, result: Observation) {
+  public async messageAboutKiters(spot: Spot, result: Observation, chatIds: number[]) {
     const image = await fs.readFile(result.analyzedFile);
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
@@ -70,9 +70,7 @@ export class TelegramService {
     });
     const responseMessage = response.choices[0].message!;
 
-    const settings = await this.settingsService.getSettings();
-    const subscribedChats = settings.subscribedChats;
-    for (const chatId of subscribedChats) {
+    for (const chatId of chatIds) {
       await this.bot.sendPhoto(chatId, image, {
         caption: responseMessage.content!,
       });
@@ -97,7 +95,7 @@ export class TelegramService {
           amount: 1,
         });
         const result = await this.visionService.analyzeImage(imagePath[0]);
-        await this.messageAboutKiters(spot, result);
+        await this.messageAboutKiters(spot, result, [chatId]);
       } else {
         this.bot.sendMessage(chatId, 'Usage: /check <spot>');
       }
