@@ -4,14 +4,16 @@ import { Inject, Injectable } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import OpenAI from 'openai';
 import fs from 'fs/promises';
-import { ChatCompletionMessageParam } from 'openai/resources';
-import { startCase } from 'lodash';
-import { availableSpots, Locations } from '@app/config';
+import {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from 'openai/resources';
 import { BrowserService } from '@app/browser/browser.service';
 import { SpotService } from '@app/spot/spot.service';
 import { VisionService } from '@app/vision/vision.service';
 import { SettingsService } from '@app/settings/settings.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ForecastService } from '@app/forecast/forecast.service';
 
 @Injectable()
 export class TelegramService {
@@ -22,11 +24,11 @@ export class TelegramService {
     private readonly spotService: SpotService,
     private readonly visionService: VisionService,
     private readonly settingsService: SettingsService,
+    private readonly forecastService: ForecastService,
   ) {
     bot.setMyCommands([
-      { command: 'check', description: 'Перевірити спот' },
       { command: 'watch', description: 'Включити сповіщення про споти' },
-      { command: 'nowatch', description: 'Виключити сповіщення про споти' }
+      { command: 'nowatch', description: 'Виключити сповіщення про споти' },
     ]);
     this.bot.on('message', this.processMessage.bind(this));
   }
@@ -56,16 +58,29 @@ export class TelegramService {
     return false;
   }
 
-  public async messageAboutKiters(spot: Spot, result: Observation, chatIds: number[]) {
+  public async messageAboutKiters(
+    spot: Spot,
+    result: Observation,
+    chatIds: number[],
+  ) {
     const image = await fs.readFile(result.analyzedFile);
+    const forecast = await this.forecastService.getTodayForecastItems(
+      spot.name,
+    );
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
           role: 'assistant',
-          content: `${PROMPT}. You will be given information about the kiters on the spot ${spot.name}. Make your conclusion about given data. No data means kiters weren't detected on the spot.`,
+          content: `${PROMPT}. You will be given information about the kiters on the spot ${spot.name} and the forecast for the today. Make your conclusion about given data. No data means kiters weren't detected on the spot.`,
         },
-        { role: 'user', content: JSON.stringify(result.matches) },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            state: result.matches.filter((el) => el.label === 'kite'),
+            forecast,
+          }),
+        },
       ],
     });
     const responseMessage = response.choices[0].message!;
@@ -81,34 +96,20 @@ export class TelegramService {
     const chatId = msg.chat.id;
     const text = msg.text || '';
 
-    if (text.startsWith('/check')) {
-      // TODO: refactor
-      const param = text.split(' ').slice(1).join(' '); // Extract parameters after the command
-      if (param) {
-        const spot = await this.spotService.getSpotByName(param);
-        if (!spot) {
-          this.bot.sendMessage(chatId, `Spot ${param} not found`);
-          return true;
-        }
-        const imagePath = await this.browserService.getSpotImages({
-          spot,
-          amount: 1,
-        });
-        const result = await this.visionService.analyzeImage(imagePath[0]);
-        await this.messageAboutKiters(spot, result, [chatId]);
-      } else {
-        this.bot.sendMessage(chatId, 'Usage: /check <spot>');
-      }
-      return true;
-    }
     if (text.startsWith('/watch')) {
       await this.settingsService.toggleSubscribedChat(chatId, true);
-      this.bot.sendMessage(chatId, 'Тепер всі апдейти про споти будуть приходити сюди 😎 🚀');
+      this.bot.sendMessage(
+        chatId,
+        'Тепер всі апдейти про споти будуть приходити сюди 😎 🚀',
+      );
       return true;
     }
     if (text.startsWith('/nowatch')) {
       await this.settingsService.toggleSubscribedChat(chatId, false);
-      this.bot.sendMessage(chatId, 'Тепер всі апдейти про споти не будуть приходити сюди 😢');
+      this.bot.sendMessage(
+        chatId,
+        'Тепер всі апдейти про споти не будуть приходити сюди 😢',
+      );
       return true;
     }
     if (text.startsWith('/halt')) {
@@ -117,6 +118,51 @@ export class TelegramService {
       return true;
     }
     return false;
+  }
+
+  async getAvaialbeTools(): Promise<ChatCompletionTool[]> {
+    const spots = await this.spotService.getAllSpots();
+    const spotNames = spots.map((spot) => spot.name);
+    return [
+      {
+        type: 'function',
+        function: {
+          name: 'getForecast',
+          description: 'Get forecast for the given spot.',
+          parameters: {
+            type: 'object',
+            properties: {
+              location: {
+                type: 'string',
+                description: 'The spot name',
+              },
+              unit: { type: 'string', enum: spotNames },
+            },
+            required: ['location'],
+          },
+        },
+      },
+      // should be last
+      {
+        type: 'function',
+        function: {
+          name: 'getSpotImages',
+          description:
+            'Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.',
+          parameters: {
+            type: 'object',
+            properties: {
+              location: {
+                type: 'string',
+                description: 'The spot name',
+              },
+              unit: { type: 'string', enum: spotNames },
+            },
+            required: ['location'],
+          },
+        },
+      },
+    ];
   }
 
   async processMessage(msg: TelegramBot.Message) {
@@ -169,45 +215,7 @@ export class TelegramService {
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o',
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'getForecast',
-              description: 'Get forecast for the given spot.',
-              parameters: {
-                type: 'object',
-                properties: {
-                  location: {
-                    type: 'string',
-                    description: 'The spot name',
-                  },
-                  unit: { type: 'string', enum: Object.keys(availableSpots) },
-                },
-                required: ['location'],
-              },
-            },
-          },
-          // should be last
-          // {
-          //   type: "function",
-          //   function: {
-          //     name: "getSpotImages",
-          //     description: "Get live image from the spot. Look at the spot and tell me whehter you see kitesurfers or not.",
-          //     parameters: {
-          //       type: "object",
-          //       properties: {
-          //         location: {
-          //           type: "string",
-          //           description: "The spot name",
-          //         },
-          //         unit: { type: "string", enum: Object.keys(availableSpots) },
-          //       },
-          //       required: ["location"],
-          //     },
-          //   },
-          // },
-        ],
+        tools: await this.getAvaialbeTools(),
         tool_choice: 'auto',
         messages: messages,
       });
@@ -223,55 +231,44 @@ export class TelegramService {
       if (toolCalls) {
         console.log('Got tools call', toolCalls);
         messages.push(responseMessage); // extend conversation with assistant's reply
-        const images: Buffer[] = [];
+        let analyzedFile = null;
         for (const toolCall of toolCalls) {
           const functionName = toolCall.function.name as
             | 'getForecast'
             | 'getSpotImages';
           const functionArgs = JSON.parse(toolCall.function.arguments);
 
-          //   const location = startCase(functionArgs.location) as Locations;
-
-          //   if (functionName === 'getForecast') {
-          //     const forecast = await this.browserService.getForecast(location);
-          //     messages.push({
-          //       tool_call_id: toolCall.id,
-          //       role: 'tool',
-          //       name: functionName,
-          //       content: `
-          //       Build forecast only for kiteable hours, include wind speed, gustyness, wave height and temp in your message. Gusty wind is not good for kiting. Don't respond without any numbers.
-          //       Forecast: ${JSON.stringify(forecast)}`,
-          //     } as ChatCompletionMessageParam);
-          //   }
+          if (functionName === 'getForecast') {
+            const forecast = await this.forecastService.getTodayForecastItems(
+              functionArgs.location,
+            );
+            messages.push({
+              tool_call_id: toolCall.id,
+              role: 'tool',
+              name: functionName,
+              content: `
+                Build forecast only for kiteable hours, include wind speed, gustyness, wave height and temp in your message. Gusty wind is not good for kiting. Don't respond without any numbers.
+                Forecast: ${JSON.stringify(forecast)}`,
+            } as ChatCompletionMessageParam);
+          }
           // should be last as we include image as user msg to the end of tools calls
-          // if (functionName === 'getSpotImages') {
-          //   await bot.sendMessage(chatId, 'Дивлюсь камери 👀. Зачекай');
-          //   images = await getSpotImages(context, functionArgs.location);
-          //   messages.push({
-          //     tool_call_id: toolCall.id,
-          //     role: "tool",
-          //     name: functionName,
-          //     content: 'provided by user next',
-          //   } as ChatCompletionMessageParam);
-
-          //   messages.push({
-          //     role: "user",
-          //     content: [
-          //       {
-          //         type: 'text',
-          //         text: 'Send responsse in JSON fromat: {message: string; bestScreenIndex: number}'
-          //       },
-          //       ...images.map(image => {
-          //         return {
-          //           type: "image_url",
-          //           image_url: {
-          //             "url": `data:image/jpeg;base64,${image.toString('base64')}`,
-          //           }
-          //         };
-          //       })
-          //     ],
-          //   } as ChatCompletionMessageParam);
-          //}
+          if (functionName === 'getSpotImages') {
+            const spot = await this.spotService.getSpotByName(
+              functionArgs.location,
+            );
+            const images = await this.browserService.getSpotImages({
+              spot,
+              amount: 1,
+            });
+            const spotData = await this.visionService.analyzeImage(images[0]);
+            analyzedFile = spotData.analyzedFile;
+            messages.push({
+              tool_call_id: toolCall.id,
+              role: 'tool',
+              name: functionName,
+              content: JSON.stringify(spotData.matches),
+            } as ChatCompletionMessageParam);
+          }
         }
         const secondResponse = await this.openai.chat.completions.create({
           model: 'gpt-4o',
@@ -280,19 +277,11 @@ export class TelegramService {
 
         const msg = secondResponse.choices[0].message.content!;
         console.log(msg);
-
-        if (msg[0] === '{') {
-          const structedMessage: {
-            message: string;
-            bestScreenIndex: number;
-          } = JSON.parse(msg);
-          await this.bot.sendPhoto(
-            chatId,
-            images[structedMessage.bestScreenIndex],
-            {
-              caption: structedMessage.message,
-            },
-          );
+        if (analyzedFile) {
+          const image = await fs.readFile(analyzedFile);
+          await this.bot.sendPhoto(chatId, image, {
+            caption: msg,
+          });
         } else {
           await this.bot.sendMessage(chatId, msg);
         }

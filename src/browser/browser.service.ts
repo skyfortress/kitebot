@@ -8,14 +8,14 @@ import { firefox } from '@playwright/test';
 
 @Injectable()
 export class BrowserService implements OnModuleInit, OnModuleDestroy {
-  private context: BrowserContext
+  private context: BrowserContext;
 
   async createBrowser() {
     const context = await firefox.launchPersistentContext('.browser', {
       headless: !process.env.DEBUG,
       serviceWorkers: 'block',
     });
-    
+
     context.addCookies([
       {
         name: 'wgcookie',

@@ -36,6 +36,29 @@ export class ForecastService {
       const date = DateTime.fromJSDate(item.date);
       return date >= now && date.diff(now).as('hours') < 4;
     });
-    return mean(relevantForecastItems.map((item) => item.speed)) >= 5.5;
+    return mean(relevantForecastItems.map((item) => item.speed)) >= 6;
+  }
+
+  async getLatestForecastForSpot(spotName: string) {
+    const [forecast] = await this.collection
+      .find({ spot: spotName })
+      .sort({ createdAt: -1 })
+      .limit(1)
+      .toArray();
+    return forecast || null;
+  }
+
+  async getTodayForecastItems(spotName: string): Promise<ForecastItem[]> {
+    const forecast = await this.getLatestForecastForSpot(spotName);
+    if (!forecast) {
+      return null;
+    }
+    const today = DateTime.now().startOf('day');
+    const tomorrow = today.plus({ days: 1 });
+
+    return forecast.items.filter((item) => {
+      const itemDate = DateTime.fromJSDate(item.date);
+      return itemDate >= today && itemDate < tomorrow;
+    });
   }
 }

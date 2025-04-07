@@ -5,6 +5,6 @@ import { MongodbModule } from '@app/mongodb/mongodb.module';
 @Module({
   imports: [MongodbModule],
   providers: [SettingsService],
-  exports: [SettingsService]
+  exports: [SettingsService],
 })
 export class SettingsModule {}

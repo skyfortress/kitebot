@@ -23,7 +23,7 @@ import { SettingsModule } from './settings/settings.module';
     WatcherModule,
     TaskModule,
     ForecastModule,
-    SettingsModule
+    SettingsModule,
   ],
   controllers: [],
   providers: [],

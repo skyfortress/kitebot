@@ -46,7 +46,15 @@ export class SpotService {
     );
   }
 
-  async scheduleNextCheck({ spot, hasKiters, delayMinuntes }: { spot: Spot; hasKiters: boolean; delayMinuntes: number; }): Promise<void> {
+  async scheduleNextCheck({
+    spot,
+    hasKiters,
+    delayMinuntes,
+  }: {
+    spot: Spot;
+    hasKiters: boolean;
+    delayMinuntes: number;
+  }): Promise<void> {
     await this.collection.updateOne(
       { _id: spot._id },
       {

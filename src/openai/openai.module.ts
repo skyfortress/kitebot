@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import OpenAI from 'openai';
+import { wrapOpenAI } from 'langsmith/wrappers';
 
 @Module({
   providers: [
     {
       provide: 'OPENAI',
       useFactory: async () => {
-        return new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+        return wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }));
       },
     },
   ],

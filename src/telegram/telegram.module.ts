@@ -6,9 +6,17 @@ import { VisionModule } from '@app/vision/vision.module';
 import { SpotModule } from '@app/spot/spot.module';
 import { OpenaiModule } from '@app/openai/openai.module';
 import { SettingsModule } from '@app/settings/settings.module';
+import { ForecastModule } from '@app/forecast/forecast.module';
 
 @Module({
-  imports: [BrowserModule, VisionModule, SpotModule, OpenaiModule, SettingsModule],
+  imports: [
+    BrowserModule,
+    VisionModule,
+    SpotModule,
+    OpenaiModule,
+    SettingsModule,
+    ForecastModule,
+  ],
   providers: [
     TelegramService,
     {

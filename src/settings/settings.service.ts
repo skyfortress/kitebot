@@ -17,7 +17,11 @@ export class SettingsService {
   async getSettings(): Promise<Settings> {
     const settings = await this.collection.findOne({});
     if (!settings) {
-      const newSettings = { ownerId: 90780619, subscribedChats: [], enabled: true };
+      const newSettings = {
+        ownerId: 90780619,
+        subscribedChats: [],
+        enabled: true,
+      };
       await this.collection.insertOne(newSettings);
       return newSettings;
     }
@@ -25,14 +29,14 @@ export class SettingsService {
   }
 
   async update(data: Partial<Settings>): Promise<Settings> {
-    await this.collection.updateOne(
-      {},
-      { $set: data },
-    );
+    await this.collection.updateOne({}, { $set: data });
     return this.getSettings();
   }
 
-  async toggleSubscribedChat(chatId: number, enabled: boolean): Promise<Settings> {
+  async toggleSubscribedChat(
+    chatId: number,
+    enabled: boolean,
+  ): Promise<Settings> {
     const settings = await this.getSettings();
 
     await this.collection.updateOne(
@@ -41,9 +45,9 @@ export class SettingsService {
         $set: {
           subscribedChats: enabled
             ? Array.from(new Set([...settings.subscribedChats, chatId]))
-            : settings.subscribedChats.filter(id => id !== chatId)
-        }
-      }
+            : settings.subscribedChats.filter((id) => id !== chatId),
+        },
+      },
     );
 
     return this.getSettings();

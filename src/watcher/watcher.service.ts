@@ -22,6 +22,25 @@ export class WatcherService {
     private readonly settingsService: SettingsService,
   ) {}
 
+  private async selectImage(results: Observation[]) {
+    const { selected } = results.reduce(
+      (acc, result) => {
+        const betterOption = result.matches.find(
+          (el) => el.label === 'kite' && el.confidence > acc.confidence,
+        );
+        if (betterOption) {
+          return {
+            selected: betterOption,
+            confidence: betterOption.confidence,
+          };
+        }
+        return acc;
+      },
+      { selected: null, confidence: 0 },
+    );
+    return selected;
+  }
+
   @Cron(CronExpression.EVERY_MINUTE)
   public async watch() {
     const settings = await this.settingsService.getSettings();
@@ -50,7 +69,7 @@ export class WatcherService {
       try {
         const images = await this.browserService.getSpotImages({
           spot,
-          amount: 10,
+          amount: 5,
           delay: 20000,
         });
 
@@ -59,27 +78,37 @@ export class WatcherService {
           results.push(await this.visionService.analyzeImage(image));
         }
 
-        const resultWithKiters = results.find((el) =>
-          el.matches.some((el) => el.label === 'kite'),
-        );
+        const resultWithKiters = await this.selectImage(results);
 
         //TODO: for debug only
         if (resultWithKiters) {
           await this.telegramService.messageAboutKiters(
             spot,
             resultWithKiters,
-            settings.subscribedChats
+            settings.subscribedChats,
           );
-          await this.spotService.scheduleNextCheck({ spot, hasKiters: true, delayMinuntes: 4 * 60 });
+          await this.spotService.scheduleNextCheck({
+            spot,
+            hasKiters: true,
+            delayMinuntes: 4 * 60,
+          });
         } else {
-          await this.spotService.scheduleNextCheck({ spot, hasKiters: false, delayMinuntes: spot.hasKiteableForecast ? 15 : 2 * 60 });
+          await this.spotService.scheduleNextCheck({
+            spot,
+            hasKiters: false,
+            delayMinuntes: spot.hasKiteableForecast ? 10 : 2 * 60,
+          });
         }
         await this.taskService.completeTask(task, results);
       } catch (e) {
         console.log('Error while processing task', e);
         await this.taskService.failTask(task, e);
         //TODO: add backoff strategy for spot check
-        await this.spotService.scheduleNextCheck({ spot, hasKiters: false, delayMinuntes: 60 });
+        await this.spotService.scheduleNextCheck({
+          spot,
+          hasKiters: false,
+          delayMinuntes: 60,
+        });
       }
     }
   }

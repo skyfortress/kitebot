@@ -5,7 +5,9 @@ import { Injectable } from '@nestjs/common';
 export class VisionService {
   async analyzeImage(path: string): Promise<Observation> {
     try {
-      const response = await fetch(`http://192.168.2.2:8000/?imagePath=${path}`);
+      const response = await fetch(
+        `http://192.168.2.2:8000/?imagePath=${path}`,
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

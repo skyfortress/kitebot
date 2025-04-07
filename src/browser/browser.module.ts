@@ -2,9 +2,7 @@ import { Module } from '@nestjs/common';
 import { BrowserService } from './browser.service';
 
 @Module({
-  providers: [
-    BrowserService,
-  ],
+  providers: [BrowserService],
   exports: [BrowserService],
 })
 export class BrowserModule {}
