@@ -81,6 +81,7 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
     try {
       await page.goto(spot.webcam);
       await page.getByLabel('video').first().scrollIntoViewIfNeeded();
+
       await page.getByLabel('video').first().click({ timeout: 60000 });
       await page
         .getByRole('button', { name: 'Fullscreen' })
@@ -90,6 +91,10 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
 
       const screenshots = [];
       for (let i = 0; i < amount; i++) {
+        const playButton = page.getByRole('button', { name: 'Play' });
+        if (await playButton.isVisible()) {
+          await playButton.click();
+        }
         console.log('Taking screenshot', i);
         const timestamp = new Date().toISOString().slice(0, 19);
         const path = resolve(
