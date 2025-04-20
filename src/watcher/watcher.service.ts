@@ -22,25 +22,6 @@ export class WatcherService {
     private readonly settingsService: SettingsService,
   ) {}
 
-  private async selectImage(results: Observation[]) {
-    const { selected } = results.reduce(
-      (acc, result) => {
-        const betterOption = result.matches.find(
-          (el) => el.label === 'kite' && el.confidence > acc.confidence,
-        );
-        if (betterOption) {
-          return {
-            selected: betterOption,
-            confidence: betterOption.confidence,
-          };
-        }
-        return acc;
-      },
-      { selected: null, confidence: 0 },
-    );
-    return selected;
-  }
-
   @Cron(CronExpression.EVERY_MINUTE)
   public async watch() {
     const settings = await this.settingsService.getSettings();
@@ -69,7 +50,7 @@ export class WatcherService {
       try {
         const images = await this.browserService.getSpotImages({
           spot,
-          amount: 5,
+          amount: 4,
           delay: 20000,
         });
 
@@ -78,7 +59,9 @@ export class WatcherService {
           results.push(await this.visionService.analyzeImage(image));
         }
 
-        const resultWithKiters = await this.selectImage(results);
+        const resultWithKiters = results.find((el) =>
+          el.matches.some((el) => el.label === 'kite'),
+        );
 
         //TODO: for debug only
         if (resultWithKiters) {
