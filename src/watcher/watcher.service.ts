@@ -73,7 +73,7 @@ export class WatcherService {
           await this.spotService.scheduleNextCheck({
             spot,
             hasKiters: true,
-            delayMinuntes: 4 * 60,
+            delayMinuntes: 6 * 60,
           });
         } else {
           await this.spotService.scheduleNextCheck({

@@ -11,7 +11,7 @@ def letterbox_with_ultralytics(image: np.ndarray, new_shape=(640, 640)):
     img_resized = letterbox(image=image)
     return img_resized
 
-OBJ_THRESH = 0.25
+OBJ_THRESH = 0.6
 NMS_THRESH = 0.45
 
 # The follew two param is for map test
