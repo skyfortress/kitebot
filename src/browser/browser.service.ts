@@ -135,6 +135,7 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
     const page = await this.context.newPage();
     try {
       await page.goto(spot.forecast);
+      await page.waitForTimeout(3000);
 
       await page.locator('#tabid_1_content_div').click(); // to wait until table is loaded
       const data = page.locator('#div_wgfcst1');
