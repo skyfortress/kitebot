@@ -4,7 +4,12 @@ import argparse
 from rknn_executor import RKNN_model_container
 from coco_utils import COCO_test_helper
 import numpy as np
+from ultralytics.data.augment import LetterBox
 
+def letterbox_with_ultralytics(image: np.ndarray, new_shape=(640, 640)):
+    letterbox = LetterBox(new_shape)
+    img_resized = letterbox(image=image)
+    return img_resized
 
 OBJ_THRESH = 0.25
 NMS_THRESH = 0.45
@@ -13,9 +18,9 @@ NMS_THRESH = 0.45
 # OBJ_THRESH = 0.001
 # NMS_THRESH = 0.65
 
-IMG_SIZE = (1280, 736)  # (width, height), such as (1280, 736)
+IMG_SIZE = (960, 960)  # (width, height), such as (1280, 736)
 
-CLASSES = ("person", "bicycle", "car","motorbike ","aeroplane ","bus ","train","truck ","boat","traffic light",
+CLASSES = ("kite", "person", "bicycle", "car","motorbike ","aeroplane ","bus ","train","truck ","boat","traffic light",
            "fire hydrant","stop sign ","parking meter","bench","bird","cat","dog ","horse ","sheep","cow","elephant",
            "bear","zebra ","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball","kite",
            "baseball bat","baseball glove","skateboard","surfboard","tennis racket","bottle","wine glass","cup","fork","knife ",
@@ -23,7 +28,7 @@ CLASSES = ("person", "bicycle", "car","motorbike ","aeroplane ","bus ","train","
            "pottedplant","bed","diningtable","toilet ","tvmonitor","laptop	","mouse	","remote ","keyboard ","cell phone","microwave ",
            "oven ","toaster","sink","refrigerator ","book","clock","vase","scissors ","teddy bear ","hair drier", "toothbrush ")
 
-coco_id_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34,
+coco_id_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34,
          35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
          64, 65, 67, 70, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 84, 85, 86, 87, 88, 89, 90]
 
@@ -168,7 +173,7 @@ def draw(image, boxes, scores, classes):
 def setup_model(model_path):
     platform = 'rknn'
     model = RKNN_model_container(model_path, 'rk3566', None)
-   
+
     return model, platform
 
 def img_check(path):
@@ -183,7 +188,7 @@ def verify_image_size(img):
     """Verify and resize image if needed"""
     if img.shape[:2] != (IMG_SIZE[1], IMG_SIZE[0]):
         print(f"Warning: Input image size {img.shape[:2]} does not match required size {(IMG_SIZE[1], IMG_SIZE[0])}")
-        img = cv2.resize(img, (IMG_SIZE[0], IMG_SIZE[1]))
+        img = letterbox_with_ultralytics(img, new_shape=(IMG_SIZE[0], IMG_SIZE[1]))
     return img
 
 if __name__ == '__main__':
@@ -242,6 +247,7 @@ if __name__ == '__main__':
             input_data = img
 
         outputs = model.run([input_data])
+        print(outputs)
         boxes, classes, scores = post_process(outputs)
 
         if args.img_show or args.img_save:
