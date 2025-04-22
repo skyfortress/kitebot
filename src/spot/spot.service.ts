@@ -39,7 +39,6 @@ export class SpotService {
       { _id: spot._id },
       {
         $set: {
-          ...(hasKiteableForecast ? { nextCheck: new Date() } : {}), //don't wait for the next check if we have a kiteable forecast
           hasKiteableForecast,
         },
       },
