@@ -81,16 +81,18 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
     try {
       await page.goto(spot.webcam);
       await page.getByLabel('video').first().scrollIntoViewIfNeeded();
-
       await page.getByLabel('video').first().click({ timeout: 60000 });
-      await page
-        .getByRole('button', { name: 'Fullscreen' })
-        .click({ timeout: 60000 });
 
       await page.waitForTimeout(2000);
 
       const screenshots = [];
       for (let i = 0; i < amount; i++) {
+        const fullScreen = page.getByRole('button', {
+          name: 'Fullscreen',
+        });
+        if (await fullScreen.isVisible()) {
+          await fullScreen.click();
+        }
         const playButton = page.getByRole('button', { name: 'Play' });
         if (await playButton.isVisible()) {
           await playButton.click();
